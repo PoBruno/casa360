@@ -31,8 +31,8 @@ CREATE TABLE Trigger_Error_Log (
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
-   NEW.updated_at = NOW();
-   RETURN NEW;
+  NEW.updated_at = NOW();
+  RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -228,6 +228,9 @@ CREATE TABLE Finance_Entries (
     end_date DATE NULL,                           -- Data de término (para recorrência)
     description TEXT,                             -- Descrição detalhada da entrada
     installments_count INT DEFAULT 1 CHECK (installments_count > 0),  -- Número de parcelas
+    is_fixed BOOLEAN DEFAULT FALSE,               -- Indica se a entrada é fixa
+    is_recurring BOOLEAN DEFAULT FALSE,           -- Indica se a entrada é recorrente
+    payment_day INT CHECK (payment_day BETWEEN 1 AND 31), -- Dia do pagamento
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
     CONSTRAINT chk_dates CHECK (end_date IS NULL OR end_date >= start_date),
@@ -373,8 +376,11 @@ FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 ------------------------------------------------------------
 -- Trigger: Gerar Parcelas automaticamente após inserir uma entrada
 --
--- Cria as parcelas (Finance_Installments) com base no número de parcelas definido
--- em Finance_Entries, calculando a data de vencimento conforme a frequência.
+-- Cria as parcelas (Finance_Installments) com base em:
+-- - Frequência (days_interval da tabela Finance_Frequency)
+-- - Data inicial (start_date da Finance_Entries)
+-- - Data atual (para calcular parcelas até o momento)
+-- - Status de recorrência (is_recurring)
 ------------------------------------------------------------
 CREATE OR REPLACE FUNCTION generate_installments()
 RETURNS TRIGGER AS $$
@@ -382,36 +388,93 @@ DECLARE
     l_days_interval INT;
     current_installment INT := 1;
     installment_due_date DATE := NEW.start_date;
+    current_date DATE := CURRENT_DATE;
+    total_installments INT;
 BEGIN
-    IF NEW.finance_frequency_id IS NOT NULL THEN
-        SELECT ff.days_interval
-          INTO l_days_interval
-          FROM Finance_Frequency ff
-        WHERE ff.id = NEW.finance_frequency_id;
+    -- Obter o intervalo de dias da frequência
+    SELECT ff.days_interval
+    INTO l_days_interval
+    FROM Finance_Frequency ff
+    WHERE ff.id = NEW.finance_frequency_id;
+
+    IF l_days_interval IS NULL THEN
+        l_days_interval := 30; -- Padrão mensal se não especificado
     END IF;
 
-    IF NEW.installments_count >= 1 THEN
-        WHILE current_installment <= NEW.installments_count LOOP
-            INSERT INTO Finance_Installments (finance_entries_id, installment_number, due_date, amount)
-            VALUES (NEW.id, current_installment, installment_due_date, NEW.amount / NEW.installments_count);
-            
-            IF l_days_interval IS NOT NULL THEN
-                installment_due_date := installment_due_date + INTERVAL '1 day' * l_days_interval;
-            END IF;
-            current_installment := current_installment + 1;
-        END LOOP;
+    -- Para entradas recorrentes, calcular número de parcelas até a data atual
+    IF NEW.is_recurring THEN
+        -- Calcula quantas parcelas cabem entre start_date e current_date
+        -- Usa divisão inteira de dias para calcular número de parcelas
+        total_installments := (current_date - NEW.start_date) / l_days_interval + 1;
+        
+        -- Garante pelo menos uma parcela
+        IF total_installments < 1 THEN
+            total_installments := 1;
+        END IF;
+    ELSE
+        -- Para não recorrentes, usa o número de parcelas definido
+        total_installments := NEW.installments_count;
     END IF;
+
+    -- Gera as parcelas
+    WHILE current_installment <= total_installments LOOP
+        -- Verifica se a parcela já existe para evitar duplicidade
+        IF NOT EXISTS (
+            SELECT 1 
+            FROM Finance_Installments 
+            WHERE finance_entries_id = NEW.id 
+            AND installment_number = current_installment
+        ) THEN
+            -- Calcula status baseado na data de vencimento
+            INSERT INTO Finance_Installments (
+                finance_entries_id,
+                installment_number,
+                due_date,
+                amount,
+                status
+            )
+            VALUES (
+                NEW.id,
+                current_installment,
+                installment_due_date,
+                NEW.amount,
+                CASE 
+                    WHEN installment_due_date < current_date THEN 'overdue'
+                    ELSE 'pending'
+                END
+            );
+        END IF;
+
+        -- Incrementa a data de vencimento para próxima parcela
+        installment_due_date := installment_due_date + (l_days_interval || ' days')::INTERVAL;
+        current_installment := current_installment + 1;
+    END LOOP;
+
     RETURN NEW;
 EXCEPTION
     WHEN OTHERS THEN
-        INSERT INTO Trigger_Error_Log(trigger_name, function_name, operation, input_data, error_message)
-        VALUES ('trigger_after_finance_installments', 'generate_installments', 'INSERT', to_jsonb(NEW), 'Erro: ' || SQLERRM);
+        INSERT INTO Trigger_Error_Log(
+            trigger_name, 
+            function_name, 
+            operation, 
+            input_data, 
+            error_message
+        )
+        VALUES (
+            'trigger_after_finance_installments', 
+            'generate_installments', 
+            'INSERT', 
+            to_jsonb(NEW), 
+            'Erro: ' || SQLERRM
+        );
         RAISE;
 END;
 $$ LANGUAGE plpgsql;
 
+-- Modifica o trigger para executar também em UPDATE
+DROP TRIGGER IF EXISTS trigger_after_finance_installments ON Finance_Entries;
 CREATE TRIGGER trigger_after_finance_installments
-AFTER INSERT ON Finance_Entries
+AFTER INSERT OR UPDATE ON Finance_Entries
 FOR EACH ROW EXECUTE FUNCTION generate_installments();
 
 ------------------------------------------------------------
@@ -420,30 +483,64 @@ FOR EACH ROW EXECUTE FUNCTION generate_installments();
 -- Insere um registro na tabela Transactions vinculado à parcela criada, replicando
 -- dados da entrada financeira correspondente.
 ------------------------------------------------------------
+-- Remove o trigger anterior
+DROP TRIGGER IF EXISTS trigger_after_transactions ON Finance_Installments;
+
+-- Modifica a função create_transaction para considerar apenas parcelas pagas
 CREATE OR REPLACE FUNCTION create_transaction()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM Transactions
-        WHERE finance_installments_id = NEW.id
-    ) THEN
-        INSERT INTO Transactions (user_id, finance_installments_id, amount, is_income)
-        SELECT user_id, NEW.id, amount, is_income
-        FROM Finance_Entries
-        WHERE id = NEW.finance_entries_id;
+    -- Só cria transação quando a parcela é marcada como paga
+    IF NEW.status = 'paid' AND (OLD.status IS NULL OR OLD.status != 'paid') THEN
+        INSERT INTO Transactions (
+            user_id, 
+            finance_installments_id, 
+            amount, 
+            is_income,
+            status,
+            transaction_date,
+            description
+        )
+        SELECT
+            fe.user_id,
+            NEW.id,
+            NEW.amount,
+            fe.is_income,
+            'completed',  -- Status completed pois a transação já está efetivada
+            NOW(),       -- Data atual como data da transação
+            fe.description
+        FROM Finance_Entries fe
+        WHERE fe.id = NEW.finance_entries_id;
+
+        -- Após criar a transação, atualiza o saldo dos usuários
+        PERFORM update_user_wallet(NEW.id);
     END IF;
     RETURN NEW;
 EXCEPTION
     WHEN OTHERS THEN
-        INSERT INTO Trigger_Error_Log(trigger_name, function_name, operation, input_data, error_message)
-        VALUES ('trigger_after_transactions', 'create_transaction', 'INSERT', to_jsonb(NEW), 'Erro: ' || SQLERRM);
+        INSERT INTO Trigger_Error_Log(
+            trigger_name, 
+            function_name, 
+            operation, 
+            input_data, 
+            error_message
+        )
+        VALUES (
+            'trigger_after_installment_paid', 
+            'create_transaction', 
+            'UPDATE', 
+            to_jsonb(NEW), 
+            'Erro: ' || SQLERRM
+        );
         RAISE;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_after_transactions
-AFTER INSERT ON Finance_Installments
-FOR EACH ROW EXECUTE FUNCTION create_transaction();
+-- Modifica o trigger para executar apenas em UPDATE
+CREATE TRIGGER trigger_after_installment_paid
+AFTER UPDATE ON Finance_Installments
+FOR EACH ROW
+EXECUTE FUNCTION create_transaction();
 
 ------------------------------------------------------------
 -- Trigger: Atualizar o saldo (wallet) dos usuários após transação
@@ -452,47 +549,538 @@ FOR EACH ROW EXECUTE FUNCTION create_transaction();
 -- definidos na associação Finance_Payer_Users. Agora, o saldo pode ficar negativo.
 -- Além disso, cada alteração é registrada na tabela User_Wallet_History.
 ------------------------------------------------------------
-CREATE OR REPLACE FUNCTION update_user_wallet()
-RETURNS TRIGGER AS $$
+-- Modifica a função update_user_wallet para receber o ID da parcela
+CREATE OR REPLACE FUNCTION update_user_wallet(installment_id INT)
+RETURNS VOID AS $$
 DECLARE
     user_id INT;
     user_share DECIMAL;
     current_wallet DECIMAL;
-    deduction DECIMAL;
+    amount_change DECIMAL;
     new_balance DECIMAL;
+    is_income BOOLEAN;
+    installment_amount DECIMAL;
 BEGIN
+    -- Buscar dados da parcela e entrada financeira
+    SELECT 
+        fi.amount,
+        fe.is_income
+    INTO 
+        installment_amount,
+        is_income
+    FROM Finance_Installments fi
+    JOIN Finance_Entries fe ON fe.id = fi.finance_entries_id
+    WHERE fi.id = installment_id;
+
+    -- Processa cada usuário envolvido no pagamento
     FOR user_id, user_share IN
         SELECT fpu.user_id, fpu.percentage
         FROM Finance_Payer_Users fpu
         JOIN Finance_Entries fe ON fe.finance_payer_id = fpu.finance_payer_id
         JOIN Finance_Installments fi ON fi.finance_entries_id = fe.id
-        WHERE fi.id = NEW.finance_installments_id
+        WHERE fi.id = installment_id
     LOOP
-        SELECT wallet INTO current_wallet FROM Users WHERE id = user_id;
-        deduction := NEW.amount * (user_share / 100);
-        new_balance := current_wallet - deduction;
+        SELECT wallet INTO current_wallet 
+        FROM Users 
+        WHERE id = user_id;
+
+        -- Calcula o valor proporcional à participação do usuário
+        amount_change := installment_amount * (user_share / 100);
         
+        -- Se for entrada (is_income = true), soma; se for saída (is_income = false), subtrai
+        IF is_income THEN
+            new_balance := current_wallet + amount_change;
+            amount_change := amount_change; -- Mantém positivo
+        ELSE
+            new_balance := current_wallet - amount_change;
+            amount_change := -amount_change; -- Torna negativo para histórico
+        END IF;
+        
+        -- Atualiza o saldo do usuário
         UPDATE Users
         SET wallet = new_balance
         WHERE id = user_id;
         
-        -- Registrar a atualização do saldo
-        INSERT INTO User_Wallet_History(user_id, change_amount, resulting_balance, change_date)
-        VALUES (user_id, -deduction, new_balance, NOW());
+        -- Registra no histórico
+        INSERT INTO User_Wallet_History(
+            user_id, 
+            change_amount, 
+            resulting_balance, 
+            change_date
+        )
+        VALUES (
+            user_id, 
+            amount_change, 
+            new_balance, 
+            NOW()
+        );
     END LOOP;
-    RETURN NEW;
+
+    -- Validação final
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Nenhuma configuração de pagador encontrada para a parcela %', installment_id;
+    END IF;
 EXCEPTION
     WHEN OTHERS THEN
-        INSERT INTO Trigger_Error_Log(trigger_name, function_name, operation, input_data, error_message)
-        VALUES ('trigger_after_user_wallet', 'update_user_wallet', 'UPDATE', to_jsonb(NEW), 'Erro: ' || SQLERRM);
+        INSERT INTO Trigger_Error_Log(
+            trigger_name, 
+            function_name, 
+            operation, 
+            input_data, 
+            error_message
+        )
+        VALUES (
+            'update_user_wallet', 
+            'update_user_wallet', 
+            'UPDATE', 
+            jsonb_build_object('installment_id', installment_id), 
+            'Erro: ' || SQLERRM
+        );
         RAISE;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_after_user_wallet
-AFTER INSERT ON Transactions
-FOR EACH ROW EXECUTE FUNCTION update_user_wallet();
+------------------------------------------------------------
+-- Trigger: Atualizar status de parcelas vencidas
+------------------------------------------------------------
+CREATE OR REPLACE FUNCTION update_overdue_installments()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Desabilita triggers temporariamente
+    PERFORM set_config('session_replication_role', 'replica', true);
+    
+    -- Atualiza apenas parcelas de entradas não recorrentes
+    UPDATE Finance_Installments fi
+    SET status = 'overdue'
+    FROM Finance_Entries fe
+    WHERE fi.finance_entries_id = fe.id
+      AND fe.is_recurring = false
+      AND fi.due_date < CURRENT_DATE
+      AND fi.status = 'pending';
+    
+    -- Reabilita triggers
+    PERFORM set_config('session_replication_role', 'origin', true);
+    
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_update_overdue_installments
+AFTER INSERT OR UPDATE ON Finance_Installments
+FOR EACH STATEMENT EXECUTE FUNCTION update_overdue_installments();
+
+------------------------------------------------------------
+-- Trigger: Gerar próxima parcela de despesa recorrente
+------------------------------------------------------------
+CREATE OR REPLACE FUNCTION generate_next_recurring_installment()
+RETURNS TRIGGER AS $$
+DECLARE
+    next_due_date DATE;
+    l_days_interval INT;
+BEGIN
+    IF NEW.status = 'paid' THEN
+        -- Buscar entrada financeira e frequência
+        SELECT ff.days_interval 
+        INTO l_days_interval
+        FROM Finance_Entries fe
+        JOIN Finance_Frequency ff ON ff.id = fe.finance_frequency_id
+        WHERE fe.id = NEW.finance_entries_id;
+
+        IF FOUND AND (SELECT is_recurring FROM Finance_Entries WHERE id = NEW.finance_entries_id) THEN
+            next_due_date := NEW.due_date + (l_days_interval || ' days')::INTERVAL;
+            
+            -- Inserir próxima parcela
+            INSERT INTO Finance_Installments (
+                finance_entries_id,
+                installment_number,
+                due_date,
+                amount,
+                status
+            )
+            VALUES (
+                NEW.finance_entries_id,
+                NEW.installment_number + 1,
+                next_due_date,
+                NEW.amount,
+                'pending'
+            );
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_generate_next_recurring_installment
+AFTER UPDATE ON Finance_Installments
+FOR EACH ROW
+WHEN (OLD.status = 'pending' AND NEW.status = 'paid')
+EXECUTE FUNCTION generate_next_recurring_installment();
+
+------------------------------------------------------------
+-- Trigger: Converter RFP em Finance_Entries
+------------------------------------------------------------
+CREATE OR REPLACE FUNCTION convert_rfp_to_finance_entry()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.status = 'approved' AND OLD.status != 'approved' THEN
+        INSERT INTO Finance_Entries (
+            user_id,
+            finance_cc_id,
+            finance_category_id,
+            finance_payer_id,
+            finance_currency_id,
+            finance_frequency_id,
+            is_income,
+            amount,
+            start_date,
+            description,
+            installments_count
+        )
+        SELECT 
+            NEW.created_by,
+            1, -- CC padrão
+            p.category_id,
+            1, -- Payer padrão
+            1, -- Moeda padrão
+            1, -- Frequência padrão
+            FALSE, -- É uma despesa
+            p.total_price,
+            CURRENT_DATE,
+            NEW.title,
+            1 -- Parcela única por padrão
+        FROM Products p
+        WHERE p.rfp_id = NEW.id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_convert_rfp_to_finance_entry
+AFTER UPDATE ON RFP
+FOR EACH ROW
+EXECUTE FUNCTION convert_rfp_to_finance_entry();
+
+
+
+
+
+
+------------------------------------------------------------
+-- Views úteis para relatórios
+------------------------------------------------------------
+
+-- 1. Visão de Resumo Financeiro (receitas, despesas e saldo)
+CREATE OR REPLACE VIEW vw_financial_summary AS
+SELECT
+    (SELECT COALESCE(SUM(amount), 0) FROM Finance_Entries WHERE is_income = TRUE) AS "Receitas",
+    (SELECT COALESCE(SUM(amount), 0) FROM Finance_Entries WHERE is_income = FALSE) AS "Despesas",
+    (SELECT COALESCE(SUM(amount), 0) FROM Finance_Entries WHERE is_income = TRUE)
+    - (SELECT COALESCE(SUM(amount), 0) FROM Finance_Entries WHERE is_income = FALSE) AS "Saldo Líquido";
+
+-- 2. Visões de Parcelas (pendentes)
+CREATE OR REPLACE VIEW vw_installments_pending AS
+SELECT
+    fi.id AS "ID",
+    --fi.finance_entries_id AS "ID da Entrada Financeira",
+    fe.description AS "Descrição",
+    fi.due_date AS "Vencimento",
+    'Pendente' AS "Status",
+    CASE 
+        WHEN fe.is_income THEN 'Entrada'
+        ELSE 'Saída'
+    END AS "Movimentação",
+    owner.name AS "Responsável",
+    (
+      SELECT array_agg(u.name)
+      FROM Finance_Payer_Users fpu
+      JOIN Users u ON u.id = fpu.user_id
+      WHERE fpu.finance_payer_id = fe.finance_payer_id
+    ) AS "Pagamento"
+FROM Finance_Installments fi
+JOIN Finance_Entries fe ON fi.finance_entries_id = fe.id
+JOIN Users owner ON owner.id = fe.user_id
+WHERE fi.status IN ('overdue', 'pending');
+
+-- 2. Visões de Parcelas (somente atuais)
+CREATE OR REPLACE VIEW vw_installments_actual_current AS
+SELECT
+    fi.id AS "ID",
+    fe.description AS "Descrição",
+    fi.due_date AS "Vencimento",
+    CASE 
+        WHEN fi.status = 'overdue' THEN 'Pendente'
+        WHEN fi.status = 'paid' THEN 'Pago'
+        ELSE fi.status  -- Mantém o status original para outros casos
+    END AS "Status",
+    CASE 
+        WHEN fe.is_income THEN 'Entrada'
+        ELSE 'Saída'
+    END AS "Movimentação",
+    owner.name AS "Responsável",
+    (
+      SELECT array_agg(u.name)
+      FROM Finance_Payer_Users fpu
+      JOIN Users u ON u.id = fpu.user_id
+      WHERE fpu.finance_payer_id = fe.finance_payer_id
+    ) AS "Pagamento"
+FROM Finance_Installments fi
+JOIN Finance_Entries fe ON fi.finance_entries_id = fe.id
+JOIN Users owner ON owner.id = fe.user_id
+WHERE date_trunc('month', fi.due_date) = date_trunc('month', CURRENT_DATE);
+
+-- 2. Visões de Parcelas (somente vencidas)
+CREATE OR REPLACE VIEW vw_installments_overdue AS
+SELECT
+    fi.id AS "ID da Parcela",
+    fe.description AS "Descrição",
+    fi.due_date AS "Vencimento",
+    CASE 
+        WHEN fi.status = 'overdue' THEN 'Pendente'
+        WHEN fi.status = 'paid' THEN 'Pago'
+        ELSE fi.status  -- Mantém o status original para outros casos
+    END AS "Status",
+    CASE 
+        WHEN fe.is_income THEN 'Entrada'
+        ELSE 'Saída'
+    END AS "Movimentação",
+    owner.name AS "Responsável",
+    (
+      SELECT array_agg(u.name)
+      FROM Finance_Payer_Users fpu
+      JOIN Users u ON u.id = fpu.user_id
+      WHERE fpu.finance_payer_id = fe.finance_payer_id
+    ) AS "Pagamento"
+FROM Finance_Installments fi
+JOIN Finance_Entries fe ON fi.finance_entries_id = fe.id
+JOIN Users owner ON owner.id = fe.user_id
+WHERE fi.due_date < CURRENT_DATE
+  AND fi.status IN ('pending', 'overdue');
+
+-- 3. Visão de Movimentações por Mês (agrupadas por receita x despesa)
+CREATE OR REPLACE VIEW vw_monthly_movements AS
+SELECT
+    to_char(fe.start_date, 'YYYY-MM') AS "Mês e Ano",
+    CASE 
+        WHEN fe.is_income THEN 'Entrada'
+        ELSE 'Saída'
+    END AS "Movimentação",
+    SUM(CASE WHEN fe.is_income THEN fe.amount ELSE -fe.amount END) AS "Fluxo Mensal Líquido",
+    SUM(fe.amount) AS "Montante Total"
+FROM Finance_Entries fe
+GROUP BY 1, fe.is_income
+ORDER BY 1;
+
+-- 4. Visão de Saldo por Usuário
+CREATE OR REPLACE VIEW vw_user_wallet_summaries AS
+SELECT
+    u.id AS "ID",
+    u.name AS "Nome",
+    u.wallet AS "Carteira Atual",
+    COALESCE((
+        SELECT SUM(amount) FROM Finance_Entries
+        WHERE user_id = u.id AND is_income = TRUE
+    ),0) AS "Receitas",
+    COALESCE((
+        SELECT SUM(amount) FROM Finance_Entries
+        WHERE user_id = u.id AND is_income = FALSE
+    ),0) AS "Despesas"
+FROM Users u;
+
+-- 5. Visão de Fluxo de Caixa Diário
+CREATE OR REPLACE VIEW vw_daily_cash_flow AS
+SELECT
+    fe.start_date AS "Data",
+    COUNT(*) AS "Total de Transações",
+    COUNT(CASE WHEN fe.is_income THEN 1 END) AS "Número de Receitas",
+    COUNT(CASE WHEN NOT fe.is_income THEN 1 END) AS "Número de Despesas",
+    SUM(CASE WHEN fe.is_income THEN fe.amount ELSE 0 END) AS "Receitas Diárias",
+    SUM(CASE WHEN NOT fe.is_income THEN fe.amount ELSE 0 END) AS "Despesas Diárias",
+    SUM(CASE WHEN fe.is_income THEN fe.amount ELSE -fe.amount END) AS "Fluxo Diário Líquido",
+    AVG(fe.amount) AS "Valor Médio por Transação"
+FROM Finance_Entries fe
+GROUP BY fe.start_date
+ORDER BY fe.start_date;
+
+-- 5. Visão de Fluxo de Caixa Mensal
+CREATE OR REPLACE VIEW vw_monthly_cash_flow AS
+WITH months AS (
+    -- Gera uma série de meses dos últimos 12 meses
+    SELECT 
+        to_char(date_trunc('month', CURRENT_DATE - INTERVAL '1 month' * s), 'YYYY-MM') AS month_year
+    FROM generate_series(0, 11) AS s
+),
+monthly_data AS (
+    -- Agrupa os dados de Transactions por mês
+    SELECT
+        to_char(t.transaction_date, 'YYYY-MM') AS month_year,
+        COUNT(*) AS total_transactions,
+        COUNT(CASE WHEN t.is_income THEN 1 END) AS total_incomes,
+        COUNT(CASE WHEN NOT t.is_income THEN 1 END) AS total_expenses,
+        SUM(CASE WHEN t.is_income THEN t.amount ELSE -t.amount END) AS net_cash_flow,
+        AVG(t.amount) AS avg_transaction_value
+    FROM Transactions t
+    GROUP BY 1
+)
+SELECT
+    m.month_year AS "Mês e Ano",
+    COALESCE(md.total_transactions, 0) AS "Total de Transações",
+    COALESCE(md.total_incomes, 0) AS "Número de Receitas",
+    COALESCE(md.total_expenses, 0) AS "Número de Despesas",
+    COALESCE(md.net_cash_flow, 0) AS "Fluxo Mensal Líquido",
+    COALESCE(md.avg_transaction_value, 0) AS "Valor Médio por Transação"
+FROM months m
+LEFT JOIN monthly_data md ON m.month_year = md.month_year
+ORDER BY m.month_year;
+
+
+
+-- 6. Visão de DRE Simplificado (Receitas, Despesas e Resultado Bruto)
+CREATE OR REPLACE VIEW vw_dre_simplified AS
+SELECT
+    to_char(fe.start_date, 'YYYY-MM') AS "Período",
+    SUM(CASE WHEN fe.is_income THEN fe.amount ELSE 0 END) AS "Receita Total",
+    SUM(CASE WHEN NOT fe.is_income THEN fe.amount ELSE 0 END) AS "Custos Totais",
+    (
+      SUM(CASE WHEN fe.is_income THEN fe.amount ELSE 0 END)
+      - SUM(CASE WHEN NOT fe.is_income THEN fe.amount ELSE 0 END)
+    ) AS "Resultado Bruto"
+FROM Finance_Entries fe
+GROUP BY 1
+ORDER BY 1;
+
+-- 7. Visão de DRE Detalhado (por categoria e subcategoria)
+CREATE OR REPLACE VIEW vw_dre_detailed AS
+SELECT
+    to_char(fe.start_date, 'YYYY-MM') AS "Período",
+    fc.name AS "Categoria",
+    COALESCE(pc.name, 'Nenhuma') AS "Categoria Pai",
+    SUM(CASE WHEN fe.is_income THEN fe.amount ELSE 0 END) AS "Receita da Categoria",
+    SUM(CASE WHEN NOT fe.is_income THEN fe.amount ELSE 0 END) AS "Custo da Categoria",
+    (
+      SUM(CASE WHEN fe.is_income THEN fe.amount ELSE 0 END)
+      - SUM(CASE WHEN NOT fe.is_income THEN fe.amount ELSE 0 END)
+    ) AS "Resultado da Categoria"
+FROM Finance_Entries fe
+JOIN Finance_Category fc ON fc.id = fe.finance_category_id
+LEFT JOIN Finance_Category pc ON pc.id = fc.parent_category_id
+GROUP BY 1, fc.name, pc.name
+ORDER BY 1, "Categoria Pai", "Categoria";
+
+-- 8. Visão de Saldo por Categoria
+CREATE OR REPLACE VIEW vw_category_Entry_balances AS
+SELECT
+    fc.id AS "ID da Categoria",
+    fc.name AS "Nome da Categoria",
+    COALESCE((
+        SELECT SUM(amount) FROM Finance_Entries
+        WHERE finance_category_id = fc.id AND is_income = TRUE
+    ),0) AS "Receitas",
+    COALESCE((
+        SELECT SUM(amount) FROM Finance_Entries
+        WHERE finance_category_id = fc.id AND is_income = FALSE
+    ),0) AS "Despesas"
+FROM Finance_Category fc;
+
+-- 9. Visão de Saldo por Centro de Custo
+CREATE OR REPLACE VIEW vw_cc_Entry_balances AS
+SELECT
+    fcc.id AS "ID do Centro de Custo",
+    fcc.name AS "Nome do Centro de Custo",
+    COALESCE((
+        SELECT SUM(amount) FROM Finance_Entries
+        WHERE finance_cc_id = fcc.id AND is_income = TRUE
+    ),0) AS "Receitas",
+    COALESCE((
+        SELECT SUM(amount) FROM Finance_Entries
+        WHERE finance_cc_id = fcc.id AND is_income = FALSE
+    ),0) AS "Despesas"
+FROM Finance_CC fcc;
+
+-- 10. Visão de Saldo por Moeda
+CREATE OR REPLACE VIEW vw_currency_Entry_balances AS
+SELECT
+    fc.id AS "ID da Moeda",
+    fc.name AS "Nome da Moeda",
+    COALESCE((
+        SELECT SUM(amount) FROM Finance_Entries
+        WHERE finance_currency_id = fc.id AND is_income = TRUE
+    ),0) AS "Receitas",
+    COALESCE((
+        SELECT SUM(amount) FROM Finance_Entries
+        WHERE finance_currency_id = fc.id AND is_income = FALSE
+    ),0) AS "Despesas"
+FROM Finance_Currency fc;
+
+-- 11. Visão de Saldo por Pagador
+CREATE OR REPLACE VIEW vw_payer_Entry_balances AS
+SELECT
+    fp.id AS "ID",
+    fp.name AS "Nome",
+    COALESCE((
+        SELECT SUM(amount) FROM Finance_Entries
+        WHERE finance_payer_id = fp.id AND is_income = TRUE
+    ),0) AS "Receitas",
+    COALESCE((
+        SELECT SUM(amount) FROM Finance_Entries
+        WHERE finance_payer_id = fp.id AND is_income = FALSE
+    ),0) AS "Despesas"
+FROM Finance_Payer fp;
+
+-- 12. Visão de Saldo por Fornecedor
+CREATE OR REPLACE VIEW vw_supplier_Entry_balances AS
+SELECT
+    s.id AS "ID",
+    s.name AS "Nome",
+    COALESCE((
+        SELECT SUM(p.total_price) FROM Products p
+        WHERE p.supplier_id = s.id
+    ),0) AS "Despesas"
+FROM Suppliers s;
+
+-- 13. Visão de Saldo por Produto
+CREATE OR REPLACE VIEW vw_product_Entry_balances AS
+SELECT
+    p.id AS "ID",
+    p.name AS "Nome",
+    COALESCE((
+        SELECT SUM(p.total_price) FROM Products p
+    ),0) AS "Despesas"
+FROM Products p;
+
+-- 14. Visão de Saldo por RFP
+CREATE OR REPLACE VIEW vw_rfp_Entry_balances AS
+SELECT
+    r.id AS "ID",
+    r.title AS "Título da RFP",
+    COALESCE((
+        SELECT SUM(p.total_price) FROM Products p
+        WHERE p.rfp_id = r.id
+    ),0) AS "Despesas"
+FROM RFP r;
+
+-- 18. Visão de Saldo por Centro de Custo e Moeda
+CREATE OR REPLACE VIEW vw_cc_currency_Entry_balances AS
+SELECT
+    fcc.id AS "ID",
+    fcc.name AS "Nome Centro de Custo",
+    fc.id AS "ID da Moeda",
+    fc.name AS "Nome da Moeda",
+    COALESCE((
+        SELECT SUM(amount) FROM Finance_Entries
+        WHERE finance_cc_id = fcc.id
+          AND finance_currency_id = fc.id
+          AND is_income = TRUE
+    ),0) AS "Receitas",
+    COALESCE((
+        SELECT SUM(amount) FROM Finance_Entries
+        WHERE finance_cc_id = fcc.id
+          AND finance_currency_id = fc.id
+          AND is_income = FALSE
+    ),0) AS "Despesas"
+FROM Finance_CC fcc
+CROSS JOIN Finance_Currency fc;
 
 ---------------------------------------------------------------------------
 -- FIM DO ESQUEMA
 ---------------------------------------------------------------------------
+
