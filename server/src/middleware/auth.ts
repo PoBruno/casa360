@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import jwt, { JwtPayload } from 'jsonwebtoken';
 import { Pool } from 'pg';
 
 const secretKey = process.env.JWT_SECRET || 'your_secret_key';
@@ -17,34 +17,51 @@ interface TokenPayload {
     email: string;
 }
 
-export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
-    const token = req.headers['authorization']?.split(' ')[1];
+interface CustomRequest extends Request {
+  user?: {
+    id: string;
+    email: string;
+    role?: string;
+  };
+}
 
-    if (!token) {
-        return res.status(401).json({ message: 'No token provided' });
+interface CustomJwtPayload extends JwtPayload {
+  id: string;
+  email: string;
+  role?: string;
+}
+
+export const authenticate = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ message: 'No token provided' });
     }
 
-    jwt.verify(token, secretKey, async (err, decoded) => {
-        if (err || !decoded || typeof decoded === 'string') {
-            return res.status(403).json({ message: 'Failed to authenticate token' });
-        }
+    // Remove 'Bearer ' do token se existir
+    const token = authHeader.replace('Bearer ', '');
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as CustomJwtPayload;
+    
+    // Garante que o payload tem os campos necessários
+    if (!decoded.id || !decoded.email) {
+      throw new Error('Invalid token payload');
+    }
+    
+    req.user = {
+      id: decoded.id,
+      email: decoded.email,
+      role: decoded.role
+    };
 
-        const payload = decoded as TokenPayload;
-        const userId = payload.id;
-
-        const result = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
-        if (result.rows.length === 0) {
-            return res.status(403).json({ message: 'User not found' });
-        }
-
-        // Set req.user based on our custom declaration
-        req.user = result.rows[0];
-        next();
-    });
+    next();
+  } catch (error) {
+    return res.status(403).json({ message: 'Invalid or expired token' });
+  }
 };
 
 export const authorize = (roles: string[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: CustomRequest, res: Response, next: NextFunction) => {
     // Ensure req.user is present and has a role before calling includes
     if (!req.user || !req.user.role || !roles.includes(req.user.role)) {
       return res.status(403).json({ message: 'Access denied' });

@@ -1,77 +1,84 @@
-import { Router } from 'express';
-import { query } from '../services/database';
+import { Router, Request, Response } from 'express';
+import DatabaseManager from '../services/databaseManager';
 
-const router = Router();
+const router = Router({ mergeParams: true });
 
-// GET TUDO: Lista todas as frequências financeiras
-router.get('/', async (req, res) => {
+// GET: Retorna todas as frequências financeiras
+router.get('/house/:house_id/finance-frequency', async (req: Request, res: Response) => {
+  const { house_id } = req.params;
   try {
-    const result = await query('SELECT * FROM Finance_Frequency');
-    res.json(result.rows);
+    const dbManager = DatabaseManager.getInstance();
+    const pool = await dbManager.getHousePool(house_id);
+    const result = await pool.query('SELECT * FROM Finance_Frequency ORDER BY id');
+    res.status(200).json(result.rows);
   } catch (error) {
-    res.status(500).json(error);
+    res.status(500).json({ error: 'Erro ao buscar Finance_Frequency' });
   }
 });
 
-// GET POR ID
-router.get('/:id', async (req, res) => {
+// GET: Retorna uma frequência financeira por ID
+router.get('/house/:house_id/finance-frequency/:id', async (req: Request, res: Response) => {
+  const { house_id, id } = req.params;
   try {
-    const { id } = req.params;
-    const result = await query('SELECT * FROM Finance_Frequency WHERE id = $1', [id]);
-    if (result.rows.length) {
-      res.json(result.rows[0]);
-    } else {
-      res.status(404).json({ message: 'Registro não encontrado' });
-    }
+    const dbManager = DatabaseManager.getInstance();
+    const pool = await dbManager.getHousePool(house_id);
+    const result = await pool.query('SELECT * FROM Finance_Frequency WHERE id = $1', [id]);
+    if (result.rows.length > 0) res.status(200).json(result.rows[0]);
+    else res.status(404).json({ message: 'Finance_Frequency não encontrada' });
   } catch (error) {
-    res.status(500).json(error);
+    res.status(500).json({ error: 'Erro ao buscar Finance_Frequency' });
   }
 });
 
 // POST: Insere uma nova frequência financeira
-router.post('/', async (req, res) => {
+router.post('/house/:house_id/finance-frequency', async (req: Request, res: Response) => {
+  const { house_id } = req.params;
+  const { name, days_interval } = req.body;
   try {
-    const { name, days_interval } = req.body;
-    const result = await query(
-      `INSERT INTO Finance_Frequency (name, days_interval)
-       VALUES ($1, $2) RETURNING *`,
+    const dbManager = DatabaseManager.getInstance();
+    const pool = await dbManager.getHousePool(house_id);
+    const result = await pool.query(
+      `INSERT INTO Finance_Frequency (name, days_interval, created_at, updated_at)
+       VALUES ($1, $2, NOW(), NOW()) RETURNING *`,
       [name, days_interval]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    res.status(500).json(error);
+    res.status(500).json({ error: 'Erro ao inserir Finance_Frequency' });
   }
 });
 
-// PUT: Atualiza uma frequência financeira
-router.put('/:id', async (req, res) => {
+// PUT: Atualiza uma frequência financeira por ID
+router.put('/house/:house_id/finance-frequency/:id', async (req: Request, res: Response) => {
+  const { house_id, id } = req.params;
+  const { name, days_interval } = req.body;
   try {
-    const { id } = req.params;
-    const { name, days_interval } = req.body;
-    const result = await query(
-      `UPDATE Finance_Frequency
+    const dbManager = DatabaseManager.getInstance();
+    const pool = await dbManager.getHousePool(house_id);
+    const result = await pool.query(
+      `UPDATE Finance_Frequency 
        SET name = $1, days_interval = $2, updated_at = NOW()
        WHERE id = $3 RETURNING *`,
       [name, days_interval, id]
     );
-    if (result.rows.length) {
-      res.json(result.rows[0]);
-    } else {
-      res.status(404).json({ message: 'Registro não encontrado' });
-    }
+    if (result.rows.length > 0) res.status(200).json(result.rows[0]);
+    else res.status(404).json({ message: 'Finance_Frequency não encontrada' });
   } catch (error) {
-    res.status(500).json(error);
+    res.status(500).json({ error: 'Erro ao atualizar Finance_Frequency' });
   }
 });
 
-// DELETE: Remove uma frequência financeira
-router.delete('/:id', async (req, res) => {
+// DELETE: Remove uma frequência financeira por ID
+router.delete('/house/:house_id/finance-frequency/:id', async (req: Request, res: Response) => {
+  const { house_id, id } = req.params;
   try {
-    const { id } = req.params;
-    await query('DELETE FROM Finance_Frequency WHERE id = $1', [id]);
-    res.status(204).send();
+    const dbManager = DatabaseManager.getInstance();
+    const pool = await dbManager.getHousePool(house_id);
+    const result = await pool.query('DELETE FROM Finance_Frequency WHERE id = $1 RETURNING *', [id]);
+    if (result.rows.length > 0) res.status(200).json({ message: 'Finance_Frequency removida com sucesso' });
+    else res.status(404).json({ message: 'Finance_Frequency não encontrada' });
   } catch (error) {
-    res.status(500).json(error);
+    res.status(500).json({ error: 'Erro ao deletar Finance_Frequency' });
   }
 });
 

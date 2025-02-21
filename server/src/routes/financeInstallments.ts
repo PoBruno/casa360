@@ -1,7 +1,7 @@
-import { Router } from 'express';
-import { query } from '../services/database';
+import { Router, Request, Response } from 'express';
+import DatabaseManager from '../services/databaseManager';
 
-const router = Router();
+const router = Router({ mergeParams: true });
 
 // GET: Lista todas as parcelas
 router.get('/', async (req, res) => {

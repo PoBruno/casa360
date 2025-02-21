@@ -1,4 +1,6 @@
 import { primaryPool } from '../config/database';
+import { Request, Response } from 'express';
+import DatabaseManager from '../services/databaseManager';
 
 export const query = (text: string, params?: any[]) => {
   return primaryPool.query(text, params);
@@ -58,6 +60,19 @@ export const authenticateUser = async (email: string, password: string) => {
 export const getUserByEmail = async (email: string) => {
     const result = await query('SELECT * FROM Users WHERE email = $1', [email]);
     return result.rows[0];
+};
+
+export const getFinanceData = async (req: Request, res: Response) => {
+  try {
+    const { houseId } = req.params;
+    const dbManager = DatabaseManager.getInstance();
+    const housePool = await dbManager.getHousePool(houseId);
+
+    const result = await housePool.query('SELECT * FROM Finance_Entries');
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Error fetching finance data' });
+  }
 };
 
 // Additional functions for finance records can be added here (update, delete, etc.)

@@ -1,4 +1,8 @@
+import fs from 'fs';
+import path from 'path';
 import { Pool } from 'pg';
+import dotenv from 'dotenv';
+dotenv.config();
 
 interface DatabaseConfig {
   host: string;
@@ -11,7 +15,7 @@ interface DatabaseConfig {
 class DatabaseManager {
   private static instance: DatabaseManager;
   private userPool: Pool;
-  private housePools: Map<string, Pool>;
+  private housePools: Map<string, Pool> = new Map();
 
   private constructor() {
     this.userPool = new Pool({
@@ -21,8 +25,6 @@ class DatabaseManager {
       database: process.env.DB_NAME,
       port: parseInt(process.env.DB_PORT || '5432'),
     });
-
-    this.housePools = new Map();
   }
 
   static getInstance(): DatabaseManager {
@@ -37,17 +39,17 @@ class DatabaseManager {
   }
 
   async getHousePool(houseId: string): Promise<Pool> {
-    if (!this.housePools.has(houseId)) {
-      const pool = new Pool({
-        host: process.env.DATA_CASA_HOST,
-        user: process.env.DATA_CASA_USER,
-        password: process.env.DATA_CASA_PASSWORD,
-        database: `house_${houseId}`,
-        port: parseInt(process.env.DATA_CASA_PORT || '5432'),
-      });
-      this.housePools.set(houseId, pool);
-    }
-    return this.housePools.get(houseId)!;
+  if (!this.housePools.has(houseId)) {
+    const pool = new Pool({
+      host: process.env.DATA_CASA_HOST,
+      user: process.env.DATA_CASA_USER,
+      password: process.env.DATA_CASA_PASSWORD,
+      database: houseId,
+      port: parseInt(process.env.DATA_CASA_PORT || '5432'),
+    });
+    this.housePools.set(houseId, pool);
+  }
+  return this.housePools.get(houseId)!;
   }
 
   async createHouseDatabase(houseId: string): Promise<void> {

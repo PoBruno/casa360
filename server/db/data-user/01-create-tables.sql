@@ -55,7 +55,7 @@ CREATE TABLE houses (
     id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
     house_id TEXT NOT NULL DEFAULT generate_house_id(),
-    house_db_name VARCHAR(50) NOT NULL,
+    house_name VARCHAR(50) NOT NULL,
     address TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE

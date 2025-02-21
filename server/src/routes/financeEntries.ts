@@ -1,36 +1,65 @@
-import { Router } from 'express';
-import { query } from '../services/database';
+import { Router, Request, Response } from 'express';
+import DatabaseManager from '../services/databaseManager';
 
-const router = Router();
+interface HouseParams {
+  house_id: string;
+}
+
+interface HouseIdParams extends HouseParams {
+  id: string;
+}
+
+const router = Router({ mergeParams: true });
 
 // GET: Lista todas as entradas financeiras
-router.get('/', async (req, res) => {
+router.get('/', async (req: Request<HouseParams>, res) => {
   try {
-    const result = await query('SELECT * FROM Finance_Entries');
+    const { house_id } = req.params;
+    const dbManager = DatabaseManager.getInstance();
+    const housePool = await dbManager.getHousePool(house_id);
+    
+    const result = await housePool.query('SELECT * FROM Finance_Entries');
     res.json(result.rows);
   } catch (error) {
-    res.status(500).json(error);
+    res.status(500).json({
+      error: 'Erro ao buscar entradas financeiras',
+      details: error
+    });
   }
 });
 
 // GET: Retorna uma entrada financeira por ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req: Request<HouseIdParams>, res) => {
+  const { house_id, id } = req.params;
   try {
-    const { id } = req.params;
-    const result = await query('SELECT * FROM Finance_Entries WHERE id = $1', [id]);
+    const dbManager = DatabaseManager.getInstance();
+    const housePool = await dbManager.getHousePool(house_id);
+    
+    const result = await housePool.query(
+      'SELECT * FROM Finance_Entries WHERE id = $1',
+      [id]
+    );
+    
     if (result.rows.length) {
       res.json(result.rows[0]);
     } else {
-      res.status(404).json({ message: 'Finance_Entries not found' });
+      res.status(404).json({ message: 'Entrada financeira não encontrada' });
     }
   } catch (error) {
-    res.status(500).json(error);
+    res.status(500).json({
+      error: 'Erro ao buscar entrada financeira',
+      details: error
+    });
   }
 });
 
 // POST: Insere uma nova entrada financeira
-router.post('/', async (req, res) => {
+router.post('/', async (req: Request<HouseParams>, res) => {
   try {
+    const { house_id } = req.params;
+    const dbManager = DatabaseManager.getInstance();
+    const housePool = await dbManager.getHousePool(house_id);
+
     const {
       user_id,
       finance_cc_id,
@@ -48,7 +77,7 @@ router.post('/', async (req, res) => {
       is_recurring,
       payment_day
     } = req.body;
-    const result = await query(
+    const result = await housePool.query(
       `INSERT INTO Finance_Entries (
          user_id,
          finance_cc_id,
@@ -87,14 +116,20 @@ router.post('/', async (req, res) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    res.status(500).json(error);
+    res.status(500).json({
+      error: 'Erro ao inserir entrada financeira',
+      details: error
+    });
   }
 });
 
 // PUT: Atualiza uma entrada financeira por ID
-router.put('/:id', async (req, res) => {
+router.put('/:id', async (req: Request<HouseIdParams>, res) => {
+  const { house_id, id } = req.params;
   try {
-    const { id } = req.params;
+    const dbManager = DatabaseManager.getInstance();
+    const housePool = await dbManager.getHousePool(house_id);
+
     const {
       user_id,
       finance_cc_id,
@@ -112,7 +147,7 @@ router.put('/:id', async (req, res) => {
       is_recurring,
       payment_day
     } = req.body;
-    const result = await query(
+    const result = await housePool.query(
       `UPDATE Finance_Entries
        SET user_id = $1,
            finance_cc_id = $2,
@@ -154,21 +189,30 @@ router.put('/:id', async (req, res) => {
     if (result.rows.length) {
       res.json(result.rows[0]);
     } else {
-      res.status(404).json({ message: 'Finance_Entries not found' });
+      res.status(404).json({ message: 'Entrada financeira não encontrada' });
     }
   } catch (error) {
-    res.status(500).json(error);
+    res.status(500).json({
+      error: 'Erro ao atualizar entrada financeira',
+      details: error
+    });
   }
 });
 
 // DELETE: Remove uma entrada financeira por ID
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req: Request<HouseIdParams>, res) => {
+  const { house_id, id } = req.params;
   try {
-    const { id } = req.params;
-    await query('DELETE FROM Finance_Entries WHERE id = $1', [id]);
+    const dbManager = DatabaseManager.getInstance();
+    const housePool = await dbManager.getHousePool(house_id);
+
+    await housePool.query('DELETE FROM Finance_Entries WHERE id = $1', [id]);
     res.status(204).send();
   } catch (error) {
-    res.status(500).json(error);
+    res.status(500).json({
+      error: 'Erro ao remover entrada financeira',
+      details: error
+    });
   }
 });
 

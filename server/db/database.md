@@ -4,6 +4,26 @@
 ```shell
 #!/bin/bash
 
+
+
+login_token() {
+  echo "Realizando login com a senha inicial..."
+  LOGIN_RESPONSE=$(curl -s -X POST http://localhost:3000/api/auth/login \
+    -H "Content-Type: application/json" \
+    -d '{"email": "user1@domain.com", "password": "password"}')
+#   echo "Resposta do login: $LOGIN_RESPONSE"
+
+  # Extraindo o token usando jq
+  TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.token')
+  echo "Token extraído: $TOKEN"
+
+  # Exportando o token para uso global
+  export TOKEN
+  echo "Token exportado."
+}
+
+
+
 # 1. Cadastro do usuário
 echo "Cadastrando novo usuário..."
 curl -X POST http://localhost:3000/api/auth/register \
@@ -49,6 +69,134 @@ curl -X GET http://localhost:3000/api/financeEntries \
   -H "Authorization: $TOKEN"
 echo -e "\n"
 ```
+
+
+
+
+
+
+
+
+
+```shell
+
+#!/bin/bash
+# filepath: test-endpoints.sh
+
+# Configurações
+BASE_URL="http://localhost:3000/api"
+TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJ1c2VyMUBkb21haW4uY29tIiwiaWF0IjoxNzQwMDg5NzMwLCJleHAiOjE3NDAxNzYxMzB9.5o-mOx_1Qb84G2QYheCMyytpp9scDnj9_e3mF9LsdXE"
+HOUSE_ID="0001-0F0-0001-001Z"
+
+# Cores para output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+# Função para testar endpoints
+test_endpoint() {
+    local method=$1
+    local endpoint=$2
+    local data=$3
+    local description=$4
+
+    echo -e "\n${GREEN}Testing $description ($method $endpoint)${NC}"
+    
+    if [ -n "$data" ]; then
+        response=$(curl -s -X $method \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN" \
+            -d "$data" \
+            "${BASE_URL}${endpoint}")
+    else
+        response=$(curl -s -X $method \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN" \
+            "${BASE_URL}${endpoint}")
+    fi
+    
+    echo $response | json_pp
+}
+
+
+
+
+#!/bin/bash
+# Torne este script executável: chmod +x test_protected_endpoints.sh
+
+# Configurações
+BASE_URL="http://localhost:3000/api"
+HOUSE_ID="0001-0F0-0001-001Z"
+# Credenciais para login (use as mesmas do seu ambiente)
+EMAIL="user1@domain.com"
+PASSWORD="password"
+
+# Função para efetuar o login e obter o token
+login_token() {
+  echo "Realizando login..."
+  LOGIN_RESPONSE=$(curl -s -X POST "${BASE_URL}/auth/login" \
+    -H "Content-Type: application/json" \
+    -d "{\"email\":\"${EMAIL}\",\"password\":\"${PASSWORD}\"}")
+  
+  # Extraindo o token
+  TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.token')
+  if [ "$TOKEN" = "null" ] || [ -z "$TOKEN" ]; then
+    echo "Falha ao obter token. Verifique as credenciais."
+    exit 1
+  fi
+  echo "Token obtido: $TOKEN"
+  export TOKEN
+}
+
+# Efetua o login se o token não estiver definido
+if [ -z "$TOKEN" ]; then
+  login_token
+fi
+
+# Array com os endpoints protegidos que precisam de autenticação
+# Observação: endpoints que iniciam com /auth/login e /auth/register não são protegidos.
+endpoints=(
+  "/auth/profile"
+  "/house/${HOUSE_ID}/finance-category"
+  "/house/${HOUSE_ID}/finance-cc"
+  "/house/${HOUSE_ID}/finance-frequency"
+  "/house/${HOUSE_ID}/finance-payer"
+  "/house/${HOUSE_ID}/finance-payer-users"
+)
+
+echo -e "\n----- Testando endpoints protegidos -----\n"
+
+# Itera por cada endpoint e exibe a resposta
+for endpoint in "${endpoints[@]}"; do
+  url="${BASE_URL}${endpoint}"
+  echo "GET ${url}"
+  response=$(curl -s -X GET "${url}" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: ${TOKEN}")
+  echo "$response" | jq .
+  echo -e "\n--------------------------------------------\n"
+done
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
+
+
+
+
+
 
 
 ---

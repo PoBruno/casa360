@@ -1,4 +1,3 @@
-// filepath: /backend/backend/src/controllers/authController.ts
 import { Request, Response } from 'express';
 import * as userService from '../services/database';
 import bcrypt from 'bcrypt';
@@ -26,31 +25,32 @@ export const login = async (req: Request, res: Response) => {
         const { email, password } = req.body;
         const user = await userService.getUserByEmail(email);
         
-        if (!user) {
+        if (!user || !await bcrypt.compare(password, user.password)) {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
         
-        // Compare com o campo "password" (que já contém o hash)
-        const validPassword = await bcrypt.compare(password, user.password);
-        if (!validPassword) {
-            return res.status(401).json({ message: 'Invalid credentials' });
-        }
-        
-        // Gera o token JWT
+        // Gera o token JWT com os campos necessários
         const token = jwt.sign(
-            { id: user.id, email: user.email },
+            { 
+                id: user.id.toString(), // Converte para string se for número
+                email: user.email
+            },
             process.env.JWT_SECRET || 'your-secret-key',
-            { expiresIn: config.jwt.expiresIn || '24h' }
+            { expiresIn: '24h' }
         );
         
-        // Retorna o token no formato Bearer
-        res.status(200).json({
+        res.json({
             message: 'Login successful',
-            token: `Bearer ${token}`,
-            user
+            token,
+            user: {
+                id: user.id,
+                email: user.email,
+                created_at: user.created_at
+            }
         });
     } catch (error) {
-        res.status(500).json({ message: 'Error logging in', error });
+        console.error('Login error:', error);
+        res.status(500).json({ message: 'Error during login' });
     }
 };
 

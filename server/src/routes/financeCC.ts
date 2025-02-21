@@ -1,77 +1,83 @@
-import { Router } from 'express';
-import { query } from '../services/database';
+import { Router, Request, Response } from 'express';
+import DatabaseManager from '../services/databaseManager';
 
-const router = Router();
+const router = Router({ mergeParams: true });
 
-// GET TUDO: Lista todos os Centros de Custo
-router.get('/', async (req, res) => {
+
+// GET: Retorna todas as frequências financeiras
+router.get('/house/:house_id/finance-cc', async (req: Request, res: Response) => {
+  const { house_id } = req.params;
   try {
-    const result = await query('SELECT * FROM Finance_CC');
-    res.json(result.rows);
+    const dbManager = DatabaseManager.getInstance();
+    const pool = await dbManager.getHousePool(house_id);
+    const result = await pool.query('SELECT * FROM Finance_CC ORDER BY id');
+    res.status(200).json(result.rows);
   } catch (error) {
-    res.status(500).json(error);
+    res.status(500).json({ error: 'Erro ao buscar Finance_CC' });
   }
 });
 
-// GET POR ID: Retorna um Centro de Custo específico
-router.get('/:id', async (req, res) => {
+// GET: Retorna um centro de custo por ID
+router.get('/house/:house_id/finance-cc/:id', async (req: Request, res: Response) => {
+  const { house_id, id } = req.params;
   try {
-    const { id } = req.params;
-    const result = await query('SELECT * FROM Finance_CC WHERE id = $1', [id]);
-    if (result.rows.length) {
-      res.json(result.rows[0]);
-    } else {
-      res.status(404).json({ message: 'Registro não encontrado' });
-    }
+    const dbManager = DatabaseManager.getInstance();
+    const pool = await dbManager.getHousePool(house_id);
+    const result = await pool.query('SELECT * FROM Finance_CC WHERE id = $1', [id]);
+    if (result.rows.length > 0) res.status(200).json(result.rows[0]);
+    else res.status(404).json({ message: 'Finance_CC não encontrado' });
   } catch (error) {
-    res.status(500).json(error);
+    res.status(500).json({ error: 'Erro ao buscar Finance_CC' });
   }
 });
 
-// POST: Insere um novo Centro de Custo
-router.post('/', async (req, res) => {
+// POST: Insere um novo centro de custo
+router.post('/house/:house_id/finance-cc', async (req: Request, res: Response) => {
+  const { house_id } = req.params;
+  const { name, description } = req.body;
   try {
-    const { name, description } = req.body;
-    const result = await query(
-      `INSERT INTO Finance_CC (name, description)
-       VALUES ($1, $2) RETURNING *`,
+    const dbManager = DatabaseManager.getInstance();
+    const pool = await dbManager.getHousePool(house_id);
+    const result = await pool.query(
+      `INSERT INTO Finance_CC (name, description, created_at, updated_at)
+       VALUES ($1, $2, NOW(), NOW()) RETURNING *`,
       [name, description]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    res.status(500).json(error);
+    res.status(500).json({ error: 'Erro ao inserir Finance_CC' });
   }
 });
 
-// PUT: Atualiza um Centro de Custo
-router.put('/:id', async (req, res) => {
+// PUT: Atualiza um centro de custo existente por ID
+router.put('/house/:house_id/finance-cc/:id', async (req: Request, res: Response) => {
+  const { house_id, id } = req.params;
+  const { name, description } = req.body;
   try {
-    const { id } = req.params;
-    const { name, description } = req.body;
-    const result = await query(
-      `UPDATE Finance_CC
-       SET name = $1, description = $2, updated_at = NOW()
-       WHERE id = $3 RETURNING *`,
+    const dbManager = DatabaseManager.getInstance();
+    const pool = await dbManager.getHousePool(house_id);
+    const result = await pool.query(
+      `UPDATE Finance_CC SET name = $1, description = $2, updated_at = NOW() WHERE id = $3 RETURNING *`,
       [name, description, id]
     );
-    if (result.rows.length) {
-      res.json(result.rows[0]);
-    } else {
-      res.status(404).json({ message: 'Registro não encontrado' });
-    }
+    if (result.rows.length > 0) res.status(200).json(result.rows[0]);
+    else res.status(404).json({ message: 'Finance_CC não encontrado' });
   } catch (error) {
-    res.status(500).json(error);
+    res.status(500).json({ error: 'Erro ao atualizar Finance_CC' });
   }
 });
 
-// DELETE: Remove um Centro de Custo
-router.delete('/:id', async (req, res) => {
+// DELETE: Remove um centro de custo por ID
+router.delete('/house/:house_id/finance-cc/:id', async (req: Request, res: Response) => {
+  const { house_id, id } = req.params;
   try {
-    const { id } = req.params;
-    await query('DELETE FROM Finance_CC WHERE id = $1', [id]);
-    res.status(204).send();
+    const dbManager = DatabaseManager.getInstance();
+    const pool = await dbManager.getHousePool(house_id);
+    const result = await pool.query('DELETE FROM Finance_CC WHERE id = $1 RETURNING *', [id]);
+    if (result.rows.length > 0) res.status(200).json({ message: 'Finance_CC removido com sucesso' });
+    else res.status(404).json({ message: 'Finance_CC não encontrado' });
   } catch (error) {
-    res.status(500).json(error);
+    res.status(500).json({ error: 'Erro ao deletar Finance_CC' });
   }
 });
 
