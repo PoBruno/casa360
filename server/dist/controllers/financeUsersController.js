@@ -19,7 +19,7 @@ const getFinanceUsers = (req, res) => __awaiter(void 0, void 0, void 0, function
         const { house_id } = req.params;
         const dbManager = databaseManager_1.default.getInstance();
         const housePool = yield dbManager.getHousePool(house_id);
-        const result = yield housePool.query('SELECT * FROM user ORDER BY id');
+        const result = yield housePool.query('SELECT * FROM users ORDER BY id');
         res.json(result.rows);
     }
     catch (error) {
@@ -32,7 +32,7 @@ const getFinanceUsersById = (req, res) => __awaiter(void 0, void 0, void 0, func
     try {
         const dbManager = databaseManager_1.default.getInstance();
         const housePool = yield dbManager.getHousePool(house_id);
-        const result = yield housePool.query('SELECT * FROM user WHERE id = $1', [id]);
+        const result = yield housePool.query('SELECT * FROM users WHERE id = $1', [id]);
         if (result.rows.length) {
             res.json(result.rows[0]);
         }
@@ -51,7 +51,7 @@ const createFinanceUsers = (req, res) => __awaiter(void 0, void 0, void 0, funct
     try {
         const dbManager = databaseManager_1.default.getInstance();
         const housePool = yield dbManager.getHousePool(house_id);
-        const result = yield housePool.query('INSERT INTO user (name, email) VALUES ($1, $2) RETURNING *', [name, email, password]);
+        const result = yield housePool.query('INSERT INTO users (name, email) VALUES ($1, $2) RETURNING *', [name, email, password]);
         res.status(201).json(result.rows[0]);
     }
     catch (error) {
@@ -65,7 +65,7 @@ const updateFinanceUsers = (req, res) => __awaiter(void 0, void 0, void 0, funct
     try {
         const dbManager = databaseManager_1.default.getInstance();
         const housePool = yield dbManager.getHousePool(house_id);
-        const result = yield housePool.query('UPDATE user SET name = $1, email = $2, updated_at = NOW() WHERE id = $4 RETURNING *', [name, email, password, id]);
+        const result = yield housePool.query('UPDATE users SET name = $1, email = $2, updated_at = NOW() WHERE id = $4 RETURNING *', [name, email, password, id]);
         res.json(result.rows[0]);
     }
     catch (error) {
@@ -78,7 +78,7 @@ const deleteFinanceUsers = (req, res) => __awaiter(void 0, void 0, void 0, funct
     try {
         const dbManager = databaseManager_1.default.getInstance();
         const housePool = yield dbManager.getHousePool(house_id);
-        yield housePool.query('DELETE FROM user WHERE id = $1', [id]);
+        yield housePool.query('DELETE FROM users WHERE id = $1', [id]);
         res.status(204).send();
     }
     catch (error) {

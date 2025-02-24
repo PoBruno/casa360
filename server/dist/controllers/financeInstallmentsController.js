@@ -19,11 +19,24 @@ const getFinanceInstallments = (req, res) => __awaiter(void 0, void 0, void 0, f
     try {
         const dbManager = databaseManager_1.default.getInstance();
         const housePool = yield dbManager.getHousePool(house_id);
-        const result = yield housePool.query('SELECT * FROM Finance_Installments ORDER BY due_date');
+        const result = yield housePool.query(`
+      SELECT 
+        fi.*,
+        fe.description as entry_description,
+        fe.is_income,
+        fe.amount as entry_amount
+      FROM Finance_Installments fi
+      JOIN Finance_Entries fe ON fi.finance_entries_id = fe.id
+      ORDER BY fi.due_date DESC
+    `);
         res.json(result.rows);
     }
     catch (error) {
-        res.status(500).json({ error: 'Erro ao buscar parcelas', details: error });
+        console.error('Error fetching installments:', error);
+        res.status(500).json({
+            error: 'Erro ao buscar parcelas',
+            details: error
+        });
     }
 });
 exports.getFinanceInstallments = getFinanceInstallments;
@@ -32,7 +45,16 @@ const getFinanceInstallmentById = (req, res) => __awaiter(void 0, void 0, void 0
     try {
         const dbManager = databaseManager_1.default.getInstance();
         const housePool = yield dbManager.getHousePool(house_id);
-        const result = yield housePool.query('SELECT * FROM Finance_Installments WHERE id = $1', [id]);
+        const result = yield housePool.query(`
+      SELECT 
+        fi.*,
+        fe.description as entry_description,
+        fe.is_income,
+        fe.amount as entry_amount
+      FROM Finance_Installments fi
+      JOIN Finance_Entries fe ON fi.finance_entries_id = fe.id
+      WHERE fi.id = $1
+    `, [id]);
         if (result.rows.length) {
             res.json(result.rows[0]);
         }
@@ -41,7 +63,11 @@ const getFinanceInstallmentById = (req, res) => __awaiter(void 0, void 0, void 0
         }
     }
     catch (error) {
-        res.status(500).json({ error: 'Erro ao buscar parcela', details: error });
+        console.error('Error fetching installment:', error);
+        res.status(500).json({
+            error: 'Erro ao buscar parcela',
+            details: error
+        });
     }
 });
 exports.getFinanceInstallmentById = getFinanceInstallmentById;
