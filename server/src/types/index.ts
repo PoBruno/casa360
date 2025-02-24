@@ -24,3 +24,16 @@ export interface ErrorResponse {
     message: string;
     statusCode: number;
 }
+
+export interface FinanceEntry {
+  id?: number;
+  userId: number;
+  financeCcId: number;
+  financeCategoryId: number;
+  financePayerId: number;
+  startDate: Date;
+  paymentDay: number;
+  description: string;
+  installmentsCount: number;
+  isRecurring: boolean;
+}

@@ -21,7 +21,8 @@ login_token() {
   export TOKEN
   echo "Token exportado."
 }
-
+login_token
+echo $TOKEN
 
 
 # 1. Cadastro do usuário
@@ -125,9 +126,9 @@ test_endpoint() {
 # Torne este script executável: chmod +x test_protected_endpoints.sh
 
 # Configurações
+# Credenciais para login (use as mesmas do seu ambiente)
 BASE_URL="http://localhost:3000/api"
 HOUSE_ID="0001-0F0-0001-001Z"
-# Credenciais para login (use as mesmas do seu ambiente)
 EMAIL="user1@domain.com"
 PASSWORD="password"
 
@@ -186,9 +187,14 @@ done
 
 
 
+response=$(curl -s -X GET "/house/${HOUSE_ID}/finance-category" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: ${TOKEN}")
+  echo "$response" | jq .
 
 
-
+curl -X GET http://localhost:3000/api/house/0001-0F0-0001-001Z/finance-category \
+  -H "Authorization: $TOKEN"
 
 
 ```

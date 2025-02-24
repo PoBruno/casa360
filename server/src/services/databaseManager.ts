@@ -4,14 +4,6 @@ import { Pool } from 'pg';
 import dotenv from 'dotenv';
 dotenv.config();
 
-interface DatabaseConfig {
-  host: string;
-  port: number;
-  database: string;
-  user: string;
-  password: string;
-}
-
 class DatabaseManager {
   private static instance: DatabaseManager;
   private userPool: Pool;
@@ -39,17 +31,17 @@ class DatabaseManager {
   }
 
   async getHousePool(houseId: string): Promise<Pool> {
-  if (!this.housePools.has(houseId)) {
-    const pool = new Pool({
-      host: process.env.DATA_CASA_HOST,
-      user: process.env.DATA_CASA_USER,
-      password: process.env.DATA_CASA_PASSWORD,
-      database: houseId,
-      port: parseInt(process.env.DATA_CASA_PORT || '5432'),
-    });
-    this.housePools.set(houseId, pool);
-  }
-  return this.housePools.get(houseId)!;
+    if (!this.housePools.has(houseId)) {
+      const pool = new Pool({
+        host: process.env.DATA_CASA_HOST,
+        user: process.env.DATA_CASA_USER,
+        password: process.env.DATA_CASA_PASSWORD,
+        database: houseId,
+        port: parseInt(process.env.DATA_CASA_PORT || '5433'),
+      });
+      this.housePools.set(houseId, pool);
+    }
+    return this.housePools.get(houseId)!;
   }
 
   async createHouseDatabase(houseId: string): Promise<void> {
@@ -57,18 +49,45 @@ class DatabaseManager {
       host: process.env.DATA_CASA_HOST,
       user: process.env.DATA_CASA_USER,
       password: process.env.DATA_CASA_PASSWORD,
-      database: 'postgres',
-      port: parseInt(process.env.DATA_CASA_PORT || '5432'),
+      //database: 'postgres',
+      port: parseInt(process.env.DATA_CASA_PORT || '5433'),
+      //port: 5433,
     });
 
     try {
-      await adminPool.query(`CREATE DATABASE house_${houseId}`);
+      // 1. Criar o banco de dados
+      await adminPool.query(`CREATE DATABASE "${houseId}"`);
+      
+      // 2. Conectar ao novo banco
       const newPool = await this.getHousePool(houseId);
       
-      // Execute creation script
-      const sqlPath = path.join(__dirname, '../../db/data-casa/01-create-tables.sql');
+      // 3. Ler e executar o script SQL
+      const sqlPath = path.join(__dirname, '../../db/data-casa/01-casa-tables.sql');
       const sql = fs.readFileSync(sqlPath, 'utf8');
-      await newPool.query(sql);
+      
+      // 4. Dividir em comandos e executar um por um
+      const commands = sql.split(/;\s*$/m).filter(cmd => cmd.trim());
+
+      for (const command of commands) {
+        try {
+          await newPool.query(command);
+        } catch (error) {
+          console.error('Error executing SQL command:', command);
+          console.error('Error details:', error);
+          throw error;
+        }
+      }
+
+      await newPool.end();
+    } catch (error) {
+      console.error('Error creating house database:', error);
+      // Tentar limpar em caso de erro
+      try {
+        await adminPool.query(`DROP DATABASE IF EXISTS "${houseId}"`);
+      } catch (cleanupError) {
+        console.error('Error cleaning up failed database:', cleanupError);
+      }
+      throw error;
     } finally {
       await adminPool.end();
     }

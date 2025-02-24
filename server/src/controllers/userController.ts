@@ -1,70 +1,49 @@
 import { Request, Response } from 'express';
-import * as db from '../services/database';
-import { User } from '../models/user';
+import DatabaseManager from '../services/databaseManager';
 
-// Get all users
-export const getAllUsers = async (req: Request, res: Response) => {
+const dbManager = DatabaseManager.getInstance();
+
+export const createHouse = async (req: Request, res: Response) => {
+    const { userId, houseName } = req.body;
+    if (!userId || isNaN(Number(userId))) {
+        return res.status(400).json({ message: 'Invalid user ID' });
+    }
     try {
-        const users = await db.getAllUsers();
-        res.status(200).json(users);
+        const dbManager = DatabaseManager.getInstance();
+        const userPool = await dbManager.getUserPool();
+
+        const result = await userPool.query(
+            'INSERT INTO houses (user_id, house_name) VALUES ($1, $2) RETURNING id',
+            [userId, houseName]
+        );
+
+        const houseId = result.rows[0].id;
+        await dbManager.createHouseDatabase(houseId);
+
+        await userPool.query(
+            'INSERT INTO house_users (user_id, house_id, role) VALUES ($1, $2, $3)',
+            [userId, houseId, 'owner']
+        );
+
+        res.status(201).json({ houseId });
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching users', error });
+        console.error('Error creating house:', error);
+        res.status(500).json({ message: 'Error creating house', error: error.message, stack: error.stack });
+    }
+    } catch (error) {
+        res.status(500).json({ message: 'Error creating house', error });
     }
 };
 
-// Get a user by ID
-export const getUserById = async (req: Request, res: Response) => {
-    const { id } = req.params;
+export const getHousesByUser = async (req: Request, res: Response) => {
+    const userId = req.params.userId;
     try {
-        const user = await db.getUserById(id);
-        if (user) {
-            res.status(200).json(user);
-        } else {
-            res.status(404).json({ message: 'User not found' });
-        }
-    } catch (error) {
-        res.status(500).json({ message: 'Error fetching user', error });
-    }
-};
+        const dbManager = DatabaseManager.getInstance();
+        const userPool = await dbManager.getUserPool();
 
-// Create a new user
-export const createUser = async (req: Request, res: Response) => {
-    try {
-        const newUser: User = req.body;
-        const createdUser = await db.createUser(newUser);
-        res.status(201).json(createdUser);
+        const result = await userPool.query('SELECT * FROM houses WHERE user_id = $1', [userId]);
+        res.status(200).json(result.rows);
     } catch (error) {
-        res.status(500).json({ message: 'Error creating user', error });
-    }
-};
-
-// Update a user by ID
-export const updateUser = async (req: Request, res: Response) => {
-    const { id } = req.params;
-    try {
-        const updatedUser: User = req.body;
-        const result = await db.updateUser(id, updatedUser);
-        if (result) {
-            res.status(200).json(result);
-        } else {
-            res.status(404).json({ message: 'User not found' });
-        }
-    } catch (error) {
-        res.status(500).json({ message: 'Error updating user', error });
-    }
-};
-
-// Delete a user by ID
-export const deleteUser = async (req: Request, res: Response) => {
-    const { id } = req.params;
-    try {
-        const result = await db.deleteUser(id);
-        if (result) {
-            res.status(204).send();
-        } else {
-            res.status(404).json({ message: 'User not found' });
-        }
-    } catch (error) {
-        res.status(500).json({ message: 'Error deleting user', error });
+        res.status(500).json({ message: 'Error fetching houses', error });
     }
 };

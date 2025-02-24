@@ -1,36 +1,34 @@
 
 
 ----------------------------------------------
--- 0. (Opcional) Limpar as tabelas para evitar duplicação
+-- 0. Limpar as tabelas para evitar duplicação
 ----------------------------------------------
-DO $$
-BEGIN
-  TRUNCATE TABLE Transactions, Finance_Installments, Finance_Entries,
-      Finance_Payer_Users, Finance_Payer, Finance_Currency,
-      Finance_Category, Finance_CC, Finance_Frequency, Users
-    RESTART IDENTITY CASCADE;
-END $$;
+--DO $$
+--BEGIN
+--  TRUNCATE TABLE Transactions, Finance_Installments, Finance_Entries,
+--      Finance_Payer_Users, Finance_Payer, Finance_Currency,
+--      Finance_Category, Finance_CC, Finance_Frequency, Users
+--    RESTART IDENTITY CASCADE;
+--END $$;
+----------------------------------------------
 
-----------------------------------------------
+
 -- 1. Inserir Usuários
-----------------------------------------------
-INSERT INTO Users (name, email, password_hash)
+INSERT INTO Users (name, email)
 VALUES
-    ('Bruno', 'bruno@email.com', 'hash123'),
-    ('Tacy', 'tacy@email.com', 'hash123');
+    ('Bruno', 'bruno@email.com'),
+    ('Tacy', 'tacy@email.com');
 
-----------------------------------------------
+
 -- 2. Inserir Frequências
-----------------------------------------------
 INSERT INTO Finance_Frequency (name, days_interval)
 VALUES
   ('Mensal', 30),
   ('Quinzenal', 15),
   ('Anual', 365);
 
-----------------------------------------------
+
 -- 3. Inserir Centros de Custo
-----------------------------------------------
 INSERT INTO Finance_CC (name, description)
 VALUES
   ('Moradia', 'Despesas relacionadas à habitação'),
@@ -43,10 +41,8 @@ VALUES
   ('Lazer', 'Despesas com entretenimento'),
   ('Receita', 'Entradas financeiras');
 
-----------------------------------------------
+
 -- 4. Inserir Categorias com hierarquia
---    As categorias principais são inseridas e seus IDs são capturados para associar os subitens.
-----------------------------------------------
 DO $$
 DECLARE
   v_moradia_id INT;
@@ -112,12 +108,10 @@ BEGIN
     ('Combustível', v_transporte_id);
 END $$;
 
-----------------------------------------------
+
 -- 5. Inserir Pagadores e relação (Finance_Payer + Finance_Payer_Users)
-----------------------------------------------
--- Primeiro, vamos limpar os pagadores existentes
-TRUNCATE TABLE Finance_Payer_Users CASCADE;
-TRUNCATE TABLE Finance_Payer CASCADE;
+--TRUNCATE TABLE Finance_Payer_Users CASCADE;
+--TRUNCATE TABLE Finance_Payer CASCADE;
 
 -- Inserir pagadores simples
 INSERT INTO Finance_Payer (name) VALUES 
@@ -125,7 +119,7 @@ INSERT INTO Finance_Payer (name) VALUES
   ('Tacy'),
   ('Casal');
 
--- Inserir as relações utilizando uma única subconsulta com LIMIT 1 para evitar duplicatas.
+-- Inserir as relações
 WITH user_ids AS (
   SELECT id, name FROM Users WHERE name IN ('Bruno', 'Tacy')
 ),
@@ -144,24 +138,15 @@ FROM payer_ids p
 CROSS JOIN user_ids u
 WHERE p.name = u.name OR p.name = 'Casal';
 
-----------------------------------------------
+
 -- 6. Inserir Moeda
-----------------------------------------------
-INSERT INTO Finance_Currency (name, symbol, exchange_rate)
-VALUES ('Real', 'R$', 1.0000);
+INSERT INTO Finance_Currency (name, symbol, exchange_rate) VALUES 
+  ('Real', 'R$', 1.0000),
+  ('Dólar', 'US$', 5.0000),
+  ('Euro', '€', 6.0000);
 
 
-
-
-
-----------------------------------------------
--- 7. Inserir Entradas Financeiras conforme o CSV
-----------------------------------------------
-
-
-
--- Nota: Use "LIMIT 1" nas subconsultas de Finance_Payer para garantir que retorne apenas um resultado.
--- Row 1: Supermercado (Despesa)
+-- 7. Inserir Entradas Financeiras
 INSERT INTO Finance_Entries (
   user_id, finance_cc_id, finance_category_id, finance_payer_id,
   finance_currency_id, finance_frequency_id, is_income, amount,
@@ -182,6 +167,7 @@ VALUES (
   1,
   TRUE
 );
+
 
 -- Row 2: Renda Fixa (Salário Bruno - Receita)
 INSERT INTO Finance_Entries (
@@ -205,6 +191,7 @@ VALUES (
   TRUE
 );
 
+
 -- Row 3: Renda Fixa (Salário Tacy - Receita)
 INSERT INTO Finance_Entries (
   user_id, finance_cc_id, finance_category_id, finance_payer_id,
@@ -226,6 +213,7 @@ VALUES (
   1,
   TRUE
 );
+
 
 -- Row 4: Aluguel (Despesa)
 INSERT INTO Finance_Entries (
@@ -270,4 +258,3 @@ VALUES (
   1,
   TRUE
 );
-

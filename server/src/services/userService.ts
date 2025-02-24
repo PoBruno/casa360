@@ -1,16 +1,21 @@
 import DatabaseManager from './databaseManager';
 
-export const createHouse = async (userId: number, houseName: string) => {
+export const createUser = async (user: { username: string, email: string, password: string }) => {
   const dbManager = DatabaseManager.getInstance();
   const userPool = await dbManager.getUserPool();
 
   const result = await userPool.query(
-    'INSERT INTO houses (user_id, house_name) VALUES ($1, $2) RETURNING id',
-    [userId, houseName]
+    'INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING *',
+    [user.username, user.email, user.password]
   );
 
-  const houseId = result.rows[0].id;
-  await dbManager.createHouseDatabase(houseId);
+  return result.rows[0];
+};
 
-  return houseId;
+export const getUserByEmail = async (email: string) => {
+  const dbManager = DatabaseManager.getInstance();
+  const userPool = await dbManager.getUserPool();
+
+  const result = await userPool.query('SELECT * FROM users WHERE email = $1', [email]);
+  return result.rows[0];
 };

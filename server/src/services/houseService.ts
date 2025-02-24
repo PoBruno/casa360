@@ -1,54 +1,90 @@
+import DatabaseManager from '../services/databaseManager';
 import { query as userQuery } from './database';
-import { dataCasaPool } from '../config/dataCasa';
+import { Pool } from 'pg';
 import fs from 'fs';
 import path from 'path';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 interface HouseInput {
-  user_id: number;
-  house_db_name: string;
-  address: string;
+  user_id: string;
+  house_name: string;
+  address?: string;
 }
 
-export const createHouse = async ({ user_id, house_db_name, address }: HouseInput) => {
-  // Insere o cadastro da casa na base data-user
+export const createHouseEntry = async ({ user_id, house_name }: HouseInput) => {
   const insertResult = await userQuery(
-    'INSERT INTO houses (user_id, house_db_name, address) VALUES ($1, $2, $3) RETURNING *',
-    [user_id, house_db_name, address]
+    'INSERT INTO houses (user_id, house_name) VALUES ($1, $2) RETURNING *;',
+    [user_id, house_name]
   );
-  const house = insertResult.rows[0];
+  return insertResult.rows[0];
+};
 
-  // Conecta na instância data-casa para criar um novo banco de dados
-  // Utilize uma conexão separada (usando um pool específico para criação de DB)
-  const adminPool = new dataCasaPool.constructor({ // cria um novo pool para comandos administrativos
-    host: process.env.DATA_CASA_HOST,
+export const createHouseDatabase = async (houseId: string): Promise<void> => {
+  // Conectar ao banco 'postgres' para poder criar novos bancos
+  const adminPool = new Pool({
+    host: process.env.DATA_CASA_HOST || 'localhost',
     user: process.env.DATA_CASA_USER,
     password: process.env.DATA_CASA_PASSWORD,
-    database: process.env.DATA_CASA_NAME, // conecta na base padrão para poder emitir o comando CREATE DATABASE
-    port: Number(process.env.DATA_CASA_PORT),
+    database: 'postgres',
+    port: 5433, // Forçar porta 5433
   });
 
-  // Cria o novo banco com o nome igual à house_db_name (pode ser também house.id se preferir)
-  await adminPool.query(`CREATE DATABASE "${house.house_db_name}"`);
-  await adminPool.end();
+  try {
+    // Dropar conexões existentes com o banco se houver
+    await adminPool.query(`
+      SELECT pg_terminate_backend(pid) 
+      FROM pg_stat_activity 
+      WHERE datname = $1
+    `, [houseId]);
 
-  // Após criar o banco, execute o script de criação de tabelas nele
-  // Conecta ao novo banco
-  const newHousePool = new dataCasaPool.constructor({
-    host: process.env.DATA_CASA_HOST,
-    user: process.env.DATA_CASA_USER,
-    password: process.env.DATA_CASA_PASSWORD,
-    database: house.house_db_name,
-    port: Number(process.env.DATA_CASA_PORT),
-  });
-
-  const sqlFilePath = path.join(__dirname, '../../db/data-casa/01-create-tables.sql');
-  const sqlScript = fs.readFileSync(sqlFilePath, { encoding: 'utf8' });
-  // Divida o script em comandos (assumindo que cada comando termine com “;”)
-  const commands = sqlScript.split(/;\s*$/m).filter(Boolean);
-  for (const command of commands) {
-    await newHousePool.query(command);
+    // Criar novo banco usando o template
+    await adminPool.query(`CREATE DATABASE "${houseId}" WITH TEMPLATE house_template`);
+    
+    console.log(`Database "${houseId}" created successfully`);
+  } catch (error) {
+    console.error('Error creating house database:', error);
+    try {
+      await adminPool.query(`DROP DATABASE IF EXISTS "${houseId}"`);
+    } catch (cleanupError) {
+      console.error('Error cleaning up failed database:', cleanupError);
+    }
+    throw error;
+  } finally {
+    await adminPool.end();
   }
-  await newHousePool.end();
+};
 
+export const executeHouseTablesScript = async (houseId: string): Promise<void> => {
+  const newHousePool = new Pool({
+    host: process.env.DATA_CASA_HOST,
+    user: process.env.DATA_CASA_USER,
+    password: process.env.DATA_CASA_PASSWORD,
+    database: houseId,
+    port: parseInt(process.env.DATA_CASA_PORT || '5432'),
+  });
+
+  //try {
+  //  const sqlFilePath = path.join(__dirname, '../../db/data-casa/02-casa-insert-test.sql');
+  //  const sqlScript = fs.readFileSync(sqlFilePath, { encoding: 'utf8' });
+  //  await newHousePool.query(sqlScript);
+  //} catch (error) {
+  //  console.error('Error executing SQL script:', error);
+  //  throw error;
+  //} finally {
+  //  await newHousePool.end();
+  //}
+};
+
+export const createHouse = async ({ user_id, house_name }: HouseInput) => {
+  const house = await createHouseEntry({ user_id, house_name });
+  await createHouseDatabase(house.house_name);
+  await executeHouseTablesScript(house.house_name);
   return house;
+};
+
+export const getHousesByUser = async (userId: string) => {
+  const result = await userQuery('SELECT * FROM houses WHERE user_id = $1;', [userId]);
+  return result.rows;
 };

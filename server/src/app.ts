@@ -7,11 +7,13 @@ import errorHandler from './middleware/error';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 import authRoutes from './routes/auth';
+import houseRoutes from './routes/house';
+import financeCurrencyRoutes from './routes/financeCurrency';
 
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = parseInt(process.env.PORT || '3000', 10);
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -21,12 +23,14 @@ app.use(express.json());
 // Monta primeiro as rotas de autenticação para evitar conflito
 app.use('/api/auth', authRoutes);
 // Em seguida, as demais rotas
+app.use('/api/houses', houseRoutes);
+app.use('/api/house/:house_id/finance-currency', financeCurrencyRoutes);
 app.use('/api', routes);
 
 app.use(errorHandler);
 
-app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
+app.listen(port, '0.0.0.0', () => {
+  console.log(`Server is running on http://0.0.0.0:${port}`);
 });
 
 export default app;

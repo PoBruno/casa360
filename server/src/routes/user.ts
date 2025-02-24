@@ -34,7 +34,7 @@ router.post('/', async (req: Request, res: Response) => {
     const { name, email, wallet, account_status } = req.body;
     const result = await query(
       `INSERT INTO Users (name, email, wallet, account_status)
-         VALUES ($1, $2, $3, $4) RETURNING *`,
+          VALUES ($1, $2, $3, $4) RETURNING *`,
       [name, email, wallet || 0, account_status || 'active']
     );
     res.status(201).json(result.rows[0]);
@@ -50,7 +50,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     const { name, email, wallet, account_status } = req.body;
     const result = await query(
       `UPDATE Users SET name = $1, email = $2, wallet = $3, account_status = $4
-         WHERE id = $5 RETURNING *`,
+          WHERE id = $5 RETURNING *`,
       [name, email, wallet, account_status, id]
     );
     if (result.rows.length) {
