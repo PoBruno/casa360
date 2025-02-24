@@ -1,71 +1,103 @@
-# README.md
+# Casa360
 
-# Backend Project
+Casa360 é uma aplicação full-stack que combina um front-end em React com um back-end em Express. Este projeto é projetado para gerenciar transações financeiras, usuários e categorias de forma eficiente.
 
-This is a Node.js backend project that provides a RESTful API for managing users and finance records. The project is built using Express and TypeScript, and it includes various features such as authentication, error handling, and database interaction.
+- Documentação da API: [API.md](API.md)
 
-## Project Structure
+## Estrutura do Projeto
 
+- **client/**: Contém a aplicação front-end em React.
+  - **src/**: Arquivos fonte da aplicação React.
+    - **components/**: Componentes reutilizáveis da aplicação.
+      - **common/**: Componentes comuns reutilizáveis.
+      - **layouts/**: Componentes de layout que definem a estrutura.
+      - **views/**: Componentes de visualização que representam diferentes páginas.
+    - **hooks/**: Hooks personalizados para gerenciamento de estado.
+    - **services/**: Funções de serviço de API para comunicação com o back-end.
+    - **types/**: Tipos e interfaces TypeScript.
+    - **utils/**: Funções utilitárias da aplicação.
+    - **App.tsx**: Componente principal da aplicação.
+    - **index.tsx**: Ponto de entrada da aplicação React.
+  - **package.json**: Arquivo de configuração para dependências npm.
+  - **tsconfig.json**: Arquivo de configuração do TypeScript.
+
+- **server/**: Contém a aplicação back-end em Express.
+  - **src/**: Arquivos fonte da aplicação Express.
+    - **controllers/**: Lógica para os endpoints da API.
+    - **middleware/**: Middleware de autenticação e autorização.
+    - **models/**: Modelos de dados e esquema do banco de dados.
+    - **routes/**: Definições das rotas da API.
+    - **services/**: Funções de interação com o banco de dados.
+    - **types/**: Tipos e interfaces TypeScript.
+    - **utils/**: Funções utilitárias do servidor.
+    - **app.ts**: Ponto de entrada da aplicação Express.
+  - **package.json**: Arquivo de configuração para dependências npm.
+  - **tsconfig.json**: Arquivo de configuração do TypeScript.
+
+- **.env**: Variáveis de ambiente para a aplicação.
+- **.gitignore**: Arquivos e diretórios a serem ignorados pelo Git.
+- **README.md**: Documentação do projeto.
+- **API.md**: Documentação detalhada da API.
+
+### System Design
+
+#### Autenticação e Segurança
+
+```mermaid
+graph TD
+    A[Usuário] -->|Envia Requisição| B[Servidor Express]
+    B -->|Middleware de Autenticação| C[Verifica Token JWT]
+    C -->|Token Válido| D[Middleware de Autorização]
+    D -->|Verifica Permissão| E[Consulta Permissao de acesso a Casa]
+    E -->|Permissão Concedida| F[Retorna Dados da Casa]
+    C -->|Token Inválido| G[Retorna Erro de Autenticação]
+    D -->|Permissão Negada| H[Retorna Erro de Autorização]
 ```
-backend
-├── src
-│   ├── app.ts                # Entry point of the application
-│   ├── config
-│   │   └── database.ts       # Database configuration and initialization
-│   ├── controllers
-│   │   ├── authController.ts  # Authentication-related API endpoints
-│   │   ├── financeController.ts # Finance-related API endpoints
-│   │   ├── userController.ts   # User-related API endpoints
-│   │   └── index.ts           # Aggregates all controllers
-│   ├── middleware
-│   │   ├── auth.ts            # Authentication middleware
-│   │   └── error.ts           # Error handling middleware
-│   ├── models
-│   │   ├── finance.ts         # Finance data model
-│   │   ├── user.ts            # User data model
-│   │   └── index.ts           # Aggregates all models
-│   ├── routes
-│   │   ├── auth.ts            # Authentication routes
-│   │   ├── finance.ts         # Finance routes
-│   │   ├── user.ts            # User routes
-│   │   └── index.ts           # Aggregates all routes
-│   ├── services
-│   │   ├── database.ts        # Database interaction functions
-│   │   └── index.ts           # Aggregates all services
-│   └── types
-│       └── index.ts           # TypeScript interfaces and types
-├── .env                       # Environment variables
-├── .gitignore                 # Files to ignore in version control
-├── package.json               # npm configuration
-├── tsconfig.json              # TypeScript configuration
-└── README.md                  # Project documentation
+
+#### Design de Sistema de Todos os Endpoints
+
+```mermaid
+graph LR
+    A[Usuário] -->|Envia Requisição| B[Servidor Express] --> |Rota /auth| C[Controlador de Autenticação] -->|Rota /users| D[Controlador de Usuários]
+    D -->|Rota /house/:house_id/finance-frequency| E[Controlador de Frequência Financeira]
+    D -->|Rota /house/:house_id/finance-cc| F[Controlador de Centro de Custo]
+    D -->|Rota /house/:house_id/finance-category| G[Controlador de Categoria Financeira]
+    D -->|Rota /house/:house_id/finance-payer| H[Controlador de Pagadores]
+    D -->|Rota /house/:house_id/finance-payer-users| I[Controlador de Usuários Pagadores]
+    D -->|Rota /house/:house_id/finance-entries| J[Controlador de Entradas Financeiras]
+    D -->|Rota /house/:house_id/finance-installments| K[Controlador de Parcelas Financeiras]
+    D -->|Rota /house/:house_id/finance-transactions| L[Controlador de Transações]
+    D -->|Rota /house/:house_id/finance-currency| M[Controlador de Moeda Financeira]
+    D -->|Rota /house/:house_id/finance-users| N[Controlador de Usuários da Casa]
 ```
 
-## Setup Instructions
+## Configuração e Execução
 
-1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd backend
-   ```
+Para começar com o projeto, clone o repositório e instale as dependências para o cliente e o servidor:
 
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+```bash
+# Clone o repositório
+git clone <repository-url>
 
-3. **Set up environment variables:**
-   Create a `.env` file in the root directory and add the necessary environment variables for your database connection and any other required configurations.
+# Navegue até o diretório do cliente
+cd client
+npm install
 
-4. **Run the application:**
-   ```bash
-   npm start
-   ```
+# Navegue até o diretório do servidor
+cd ../server
+npm install
+```
 
-## Usage
+## Executando a Aplicação
 
-The API provides endpoints for managing users and finance records. You can use tools like Postman or curl to interact with the API.
+Para executar a aplicação, inicie o cliente e o servidor:
 
-## License
+```bash
+# Inicie o servidor
+cd server
+npm start
 
-This project is licensed under the MIT License.
+# Inicie o cliente
+cd ../client
+npm start
+```

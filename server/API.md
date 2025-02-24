@@ -1,5 +1,3 @@
-I'll create comprehensive API documentation for all endpoints using Markdown format:
-
 # Casa360 API Documentation
 
 ## Authentication
@@ -250,13 +248,24 @@ DELETE /finance-entries/{id}
 #### 8. Finance Installments
 
 ```
-PUT /finance-installments/{id}/status
+GET    /finance-installments
+GET    /finance-installments/{id}
+PUT    /finance-installments/{id}
+PUT    /finance-installments/{id}/status
+DELETE /finance-installments/{id}
 ```
 
 **Request Body:**
 ```json
 {
-  "status": "string"
+  "id": "number",
+  "finance_entries_id": "number",
+  "installment_number": "number",
+  "due_date": "date",
+  "amount": "number",
+  "status": "string",
+  "created_at": "timestamp",
+  "updated_at": "timestamp"
 }
 ```
 
@@ -266,6 +275,7 @@ PUT /finance-installments/{id}/status
 GET    /transactions
 GET    /transactions/{id}
 POST   /transactions
+DEL   /transactions/{id}
 ```
 
 **Request Body (POST):**
@@ -277,6 +287,24 @@ POST   /transactions
   "is_income": "boolean",
   "description": "string",
   "status": "string"
+}
+```
+
+#### 9. Finance Users
+
+```
+GET    /finance-users
+GET    /finance-users/{id}
+POST   /finance-users
+PUT    /finance-users/{id}
+DEL    /finance-users/{id}
+```
+
+**Request Body (POST):**
+```json
+{
+  "name": "User Name",
+  "email": "user@email.com"
 }
 ```
 
