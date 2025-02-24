@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_1 = require("../middleware/auth");
+const houseAuth_1 = require("../middleware/houseAuth");
+const financeCCController_1 = require("../controllers/financeCCController");
+const router = (0, express_1.Router)({ mergeParams: true });
+const houseMiddleware = [auth_1.authenticate, houseAuth_1.validateHouseAccess];
+router.get('/', houseMiddleware, financeCCController_1.getFinanceCCs);
+router.get('/:id', houseMiddleware, financeCCController_1.getFinanceCCById);
+router.post('/', houseMiddleware, financeCCController_1.createFinanceCC);
+router.put('/:id', houseMiddleware, financeCCController_1.updateFinanceCC);
+router.delete('/:id', houseMiddleware, financeCCController_1.deleteFinanceCC);
+exports.default = router;

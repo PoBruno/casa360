@@ -1,15 +1,16 @@
 import { Request, Response } from 'express';
 import DatabaseManager from '../services/databaseManager';
 
-const dbManager = DatabaseManager.getInstance();
-
 export const createHouse = async (req: Request, res: Response) => {
     const { userId, houseName } = req.body;
+    
     if (!userId || isNaN(Number(userId))) {
         return res.status(400).json({ message: 'Invalid user ID' });
     }
+
+    const dbManager = DatabaseManager.getInstance();
+    
     try {
-        const dbManager = DatabaseManager.getInstance();
         const userPool = await dbManager.getUserPool();
 
         const result = await userPool.query(
@@ -26,24 +27,24 @@ export const createHouse = async (req: Request, res: Response) => {
         );
 
         res.status(201).json({ houseId });
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('Error creating house:', error);
-        res.status(500).json({ message: 'Error creating house', error: error.message, stack: error.stack });
-    }
-    } catch (error) {
-        res.status(500).json({ message: 'Error creating house', error });
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        res.status(500).json({ message: 'Error creating house', error: errorMessage });
     }
 };
 
-export const getHousesByUser = async (req: Request, res: Response) => {
+export const getUserHouses = async (req: Request, res: Response) => {
     const userId = req.params.userId;
+    
     try {
         const dbManager = DatabaseManager.getInstance();
         const userPool = await dbManager.getUserPool();
 
         const result = await userPool.query('SELECT * FROM houses WHERE user_id = $1', [userId]);
         res.status(200).json(result.rows);
-    } catch (error) {
-        res.status(500).json({ message: 'Error fetching houses', error });
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        res.status(500).json({ message: 'Error fetching houses', error: errorMessage });
     }
 };

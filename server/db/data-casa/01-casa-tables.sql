@@ -213,15 +213,16 @@ CREATE TRIGGER trg_update_finance_entries_updated_at
 CREATE TABLE Finance_Installments (
     id SERIAL PRIMARY KEY,
     finance_entries_id INT NOT NULL,
-    installment_number INT NOT NULL,                  
-    due_date DATE NOT NULL,                           
-    amount DECIMAL(10,2) NOT NULL CHECK (amount > 0),   
-    status VARCHAR(50) DEFAULT 'pending',             
+    installment_number INT NOT NULL,
+    due_date DATE NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    status VARCHAR(50) DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
-    FOREIGN KEY (finance_entries_id) REFERENCES Finance_Entries(id) ON DELETE CASCADE,
-    CONSTRAINT uq_installment UNIQUE (finance_entries_id, installment_number)
+    FOREIGN KEY (finance_entries_id) REFERENCES Finance_Entries(id) ON DELETE CASCADE
+    CONSTRAINT uq_installment UNIQUE (finance_entries_id, installment_number),
 );
+
 CREATE TRIGGER trg_update_finance_installments_updated_at
     BEFORE UPDATE ON Finance_Installments
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

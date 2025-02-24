@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_1 = require("../middleware/auth");
+const houseAuth_1 = require("../middleware/houseAuth");
+const transactionsController_1 = require("../controllers/transactionsController");
+const router = (0, express_1.Router)({ mergeParams: true });
+const houseMiddleware = [auth_1.authenticate, houseAuth_1.validateHouseAccess];
+router.get('/', houseMiddleware, transactionsController_1.getTransactions);
+router.get('/:id', houseMiddleware, transactionsController_1.getTransactionById);
+router.post('/', houseMiddleware, transactionsController_1.createTransaction);
+exports.default = router;

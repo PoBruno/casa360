@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_1 = require("../middleware/auth");
+const houseAuth_1 = require("../middleware/houseAuth");
+const financePayerUsersController_1 = require("../controllers/financePayerUsersController");
+const router = (0, express_1.Router)({ mergeParams: true });
+const houseMiddleware = [auth_1.authenticate, houseAuth_1.validateHouseAccess];
+router.get('/', houseMiddleware, financePayerUsersController_1.getFinancePayerUsers);
+router.get('/payer/:payer_id', houseMiddleware, financePayerUsersController_1.getFinancePayerUsersByPayerId);
+router.post('/', houseMiddleware, financePayerUsersController_1.createFinancePayerUser);
+router.put('/:payer_id/user/:user_id', houseMiddleware, financePayerUsersController_1.updateFinancePayerUser);
+router.delete('/:payer_id/user/:user_id', houseMiddleware, financePayerUsersController_1.deleteFinancePayerUser);
+exports.default = router;

@@ -12,8 +12,8 @@ import financePayerUsersRouter from './financePayerUsers';
 import financeEntriesRouter from './financeEntries';
 import financeInstallmentsRouter from './financeInstallments';
 import transactionsRouter from './transactions';
-
 import financeCurrencyRouter from './financeCurrency';
+import financeUsersRouter from './financeUsers';
 
 const router = Router();
 
@@ -37,8 +37,7 @@ router.use('/house/:house_id/finance-payer', financePayerRouter);
 router.use('/house/:house_id/finance-payer-users', financePayerUsersRouter);
 router.use('/house/:house_id/finance-entries', financeEntriesRouter);
 router.use('/house/:house_id/finance-installments', financeInstallmentsRouter);
-router.use('/house/:house_id/transactions', transactionsRouter);
-
+router.use('/house/:house_id/finance-transactions', transactionsRouter);
 router.use('/house/:house_id/finance-currency', financeCurrencyRouter);
-
+router.use('/house/:house_id/finance-users', financeUsersRouter);
 export default router;
