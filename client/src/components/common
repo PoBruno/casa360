@@ -1,0 +1,39 @@
+casa360
+├── client
+│   ├── src
+│   │   ├── components
+│   │   │   ├── common
+│   │   │   │   └── index.tsx
+│   │   │   ├── layouts
+│   │   │   └── views
+│   │   ├── hooks
+│   │   ├── services
+│   │   │   └── api.ts
+│   │   ├── types
+│   │   │   └── index.ts
+│   │   ├── utils
+│   │   ├── App.tsx
+│   │   └── index.tsx
+│   ├── package.json
+│   └── tsconfig.json
+├── server
+│   ├── src
+│   │   ├── controllers
+│   │   │   └── index.ts
+│   │   ├── middleware
+│   │   │   └── auth.ts
+│   │   ├── models
+│   │   │   └── index.ts
+│   │   ├── routes
+│   │   │   └── index.ts
+│   │   ├── services
+│   │   │   └── db.ts
+│   │   ├── types
+│   │   │   └── index.ts
+│   │   ├── utils
+│   │   └── app.ts
+│   ├── package.json
+│   └── tsconfig.json
+├── .env
+├── .gitignore
+└── README.md
