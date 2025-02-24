@@ -33,18 +33,30 @@ export const getFinanceUsersById = async (req: Request, res: Response) => {
 
 export const createFinanceUsers = async (req: Request, res: Response) => {
     const { house_id } = req.params;
-    const { name, email, password } = req.body;
+    const { name, email } = req.body; // Remove password since it's not in the table structure
+    
     try {
         const dbManager = DatabaseManager.getInstance();
-        const housePool = await dbManager.getHousePool(house_id);
+        // Use userPool instead of housePool since Users table is in the main database
+        const userPool = await dbManager.getUserPool();
     
-        const result = await housePool.query(
-            'INSERT INTO users (name, email) VALUES ($1, $2) RETURNING *',
-            [name, email, password]
+        const result = await userPool.query(
+            `INSERT INTO Users (name, email) 
+             VALUES ($1, $2) 
+             RETURNING *`,
+            [name, email] // Remove password from parameters array
+        );
+
+        // Add user to house_users table
+        await userPool.query(
+            `INSERT INTO house_users (user_id, house_id, role) 
+             VALUES ($1, $2, $3)`,
+            [result.rows[0].id, house_id, 'member']
         );
     
         res.status(201).json(result.rows[0]);
     } catch (error) {
+        console.error('Error creating user:', error);
         res.status(500).json({ error: 'Erro ao criar usuário', details: error });
     }
 };
