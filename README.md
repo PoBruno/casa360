@@ -8,6 +8,10 @@ O propósito é auxiliar o gerenciamento de transações, contas recorrentes, pa
 
 ## Arquitetura do Projeto
 
+  - [Backend Documentation](server/README.md)
+  - [API Documentation](server/API.md)
+
+
 - **Backend (server/)**  
   - **src/controllers/**: Lógica dos endpoints para cada entidade (ex.: FinanceEntries, Transactions, etc.).  
   - **src/middleware/**: Autenticação, autorização e validação de acesso às casas.  
@@ -140,37 +144,4 @@ O propósito é auxiliar o gerenciamento de transações, contas recorrentes, pa
 - **Validação e Integridade dos Dados**: Os cadastros são rigorosamente validados (datas, valores positivos, somatória de percentuais igual a 100, etc.).
 - **Escalabilidade e Performance**: A separação do sistema em micro-serviços e a estruturação dos relacionamentos no banco de dados visam escalabilidade e performance.
 - **Integração com Outras Ferramentas**: Possibilidade de integração com outros sistemas ERP e de relatórios, consolidando uma visão ampla da saúde financeira da casa.
-
-
-
-
-
-
-
-
-
-O **Casa360** é um aplicativo de ERP doméstico que combina um front-end React com um back-end Express. Este projeto foi projetado para gerenciar transações financeiras, usuários e categorias com eficiência.
-
-## Project Structure
-
-- **client/**: Contains the React front-end application.
-  - **src/**: Source files for the React application.
-
-- **server/**: Contains the Express back-end application.
-  - **src/**: Source files for the Express application.
-    - **controllers/**: Logic for API endpoints.
-    - **middleware/**: Authentication and authorization middleware.
-    - **models/**: Data models and database schema.
-    - **routes/**: API route definitions.
-    - **services/**: Database interaction functions.
-    - **types/**: TypeScript types and interfaces.
-    - **utils/**: Utility functions for the server.
-    - **app.ts**: Entry point of the Express application.
-  - **package.json**: Configuration file for npm dependencies.
-  - **tsconfig.json**: TypeScript configuration file.
-
-## Backend
-
-  - [Documentation](server/README.md)
-  - [API Documentation](server/API.md)
 
