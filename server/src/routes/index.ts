@@ -1,9 +1,20 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
+
+export const login = async (req: Request, res: Response) => {
+    // TODO: Implement login logic
+    res.status(501).json({ message: 'Not implemented yet' });
+};
+
+export const register = async (req: Request, res: Response) => {
+    // TODO: Implement register logic
+    res.status(501).json({ message: 'Not implemented yet' });
+};import { Router, Request, Response, NextFunction } from 'express';
 import { authenticate } from '../middleware/auth';
 import { validateHouseAccess } from '../middleware/houseAuth';
 
 // Importações das rotas
 import usersRouter from './user';
+import houseRouter from './house';
 import financeFrequencyRouter from './financeFrequency';
 import financeCCRouter from './financeCC';
 import financeCategoryRouter from './financeCategory';
@@ -22,6 +33,7 @@ const houseMiddleware = [authenticate, validateHouseAccess];
 
 // Rotas públicas, ex: /api/auth, etc.
 router.use('/users', usersRouter);
+router.use('/houses', houseRouter);
 
 // Agrupa todas as rotas relacionadas à casa sob /house/:house_id
 router.use('/house/:house_id', houseMiddleware, (req: Request, res: Response, next: NextFunction) => {
