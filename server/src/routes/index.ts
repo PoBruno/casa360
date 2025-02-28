@@ -1,4 +1,6 @@
-import { Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
+import { authenticate } from '../middleware/auth';
+import { validateHouseAccess } from '../middleware/houseAuth';
 
 export const login = async (req: Request, res: Response) => {
     // TODO: Implement login logic
@@ -8,9 +10,9 @@ export const login = async (req: Request, res: Response) => {
 export const register = async (req: Request, res: Response) => {
     // TODO: Implement register logic
     res.status(501).json({ message: 'Not implemented yet' });
-};import { Router, Request, Response, NextFunction } from 'express';
-import { authenticate } from '../middleware/auth';
-import { validateHouseAccess } from '../middleware/houseAuth';
+};
+
+
 
 // Importações das rotas
 import usersRouter from './user';
@@ -52,4 +54,5 @@ router.use('/house/:house_id/finance-installments', financeInstallmentsRouter);
 router.use('/house/:house_id/finance-transactions', transactionsRouter);
 router.use('/house/:house_id/finance-currency', financeCurrencyRouter);
 router.use('/house/:house_id/finance-users', financeUsersRouter);
+
 export default router;
