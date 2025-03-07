@@ -252,10 +252,37 @@ GET    /finance-installments
 GET    /finance-installments/{id}
 PUT    /finance-installments/{id}
 PUT    /finance-installments/{id}/status
+PATCH  /finance-installments/{id}
 DELETE /finance-installments/{id}
 ```
 
-**Request Body:**
+**Request Body (PUT):**
+```json
+{
+  "finance_entries_id": "number",
+  "installment_number": "number",
+  "due_date": "date",
+  "amount": "number"
+}
+```
+
+**Request Body (PUT /:id/status):**
+```json
+{
+  "status": "paid"
+}
+```
+
+**Request Body (PATCH):**
+```json
+{
+  "field1": "value1",
+  "field2": "value2",
+  "...": "..."
+}
+```
+
+**Response:**
 ```json
 {
   "id": "number",

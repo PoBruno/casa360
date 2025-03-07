@@ -6,7 +6,8 @@ import {
   getFinanceInstallmentById,
   updateInstallmentStatus,
   updateFinanceInstallment,
-  deleteFinanceInstallment
+  deleteFinanceInstallment,
+  patchFinanceInstallment
 } from '../controllers/financeInstallmentsController';
 
 const router = Router({ mergeParams: true });
@@ -16,6 +17,7 @@ router.get('/', houseMiddleware, getFinanceInstallments);
 router.get('/:id', houseMiddleware, getFinanceInstallmentById);
 router.put('/:id/status', houseMiddleware, updateInstallmentStatus);
 router.put('/:id', houseMiddleware, updateFinanceInstallment);
+router.patch('/:id', houseMiddleware, patchFinanceInstallment);
 router.delete('/:id', houseMiddleware, deleteFinanceInstallment);
 
 export default router;
