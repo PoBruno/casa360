@@ -134,3 +134,62 @@ export const deleteFinanceInstallment = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Erro ao excluir parcela', details: error });
   }
 };
+
+export const patchFinanceInstallment = async (req: Request, res: Response) => {
+  const { house_id, id } = req.params;
+  const updates = req.body;
+  
+  try {
+    const dbManager = DatabaseManager.getInstance();
+    const housePool = await dbManager.getHousePool(house_id);
+    
+    // Construct dynamic SET clause based on provided fields
+    const setClause = [];
+    const values = [];
+    let paramCount = 1;
+    
+    // Process each update field
+    for (const [key, value] of Object.entries(updates)) {
+      // Skip id as it's not something we want to update
+      if (key === 'id') continue;
+      
+      setClause.push(`${key} = $${paramCount}`);
+      values.push(value);
+      paramCount++;
+    }
+    
+    // Always update the updated_at timestamp
+    setClause.push(`updated_at = NOW()`);
+    
+    // Add the id as the last parameter
+    values.push(id);
+    
+    // If no valid fields to update, return error
+    if (setClause.length <= 1) {
+      return res.status(400).json({ 
+        error: 'Nenhum campo válido para atualização fornecido' 
+      });
+    }
+    
+    const query = `
+      UPDATE Finance_Installments 
+      SET ${setClause.join(', ')} 
+      WHERE id = $${paramCount} 
+      RETURNING *
+    `;
+    
+    const result = await housePool.query(query, values);
+    
+    if (result.rows.length) {
+      res.json(result.rows[0]);
+    } else {
+      res.status(404).json({ message: 'Parcela não encontrada' });
+    }
+  } catch (error) {
+    console.error('Error updating installment:', error);
+    res.status(500).json({ 
+      error: 'Erro ao atualizar parcela', 
+      details: error 
+    });
+  }
+};
