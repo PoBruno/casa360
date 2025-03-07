@@ -80,10 +80,10 @@ function EntityTable({
     if (isLoading) {
       return (
         <TableRow>
-          <TableCell colSpan={columns.length + 2} align="center">
-            <CircularProgress size={40} />
+          <TableCell colSpan={columns.length + 1} align="center" sx={{ py: 5 }}>
+            <CircularProgress />
             <Typography variant="body1" sx={{ mt: 2 }}>
-              Carregando...
+              Carregando dados...
             </Typography>
           </TableCell>
         </TableRow>
@@ -93,9 +93,9 @@ function EntityTable({
     if (!data || data.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={columns.length + 2} align="center">
+          <TableCell colSpan={columns.length + 1} align="center" sx={{ py: 5 }}>
             <Typography variant="body1">
-              Nenhum registro encontrado.
+              Nenhum dado encontrado.
             </Typography>
           </TableCell>
         </TableRow>
@@ -108,21 +108,23 @@ function EntityTable({
         <TableRow hover key={row.id}>
           {columns.map((column) => (
             <TableCell key={column.id} align={column.align || 'left'}>
-              {column.format ? column.format(row[column.id], row) : row[column.id]}
+              {column.format && typeof row[column.id] !== 'undefined'
+                ? column.format(row[column.id], row)
+                : row[column.id]}
             </TableCell>
           ))}
           <TableCell align="right">
             {onEdit && (
               <Tooltip title="Editar">
-                <IconButton onClick={() => onEdit(row)}>
-                  <EditIcon />
+                <IconButton onClick={() => onEdit(row)} size="small">
+                  <EditIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
             )}
             {onDelete && (
               <Tooltip title="Excluir">
-                <IconButton onClick={() => onDelete(row)} color="error">
-                  <DeleteIcon />
+                <IconButton onClick={() => onDelete(row)} size="small" color="error">
+                  <DeleteIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
             )}

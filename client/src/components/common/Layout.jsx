@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Box, CssBaseline } from '@mui/material';
 import Header from './Header';
-import Sidebar from './Sidebar';
+import Sidebar from '../../navigation/Sidebar';
 import Footer from './Footer';
 
 const Layout = ({ children }) => {
@@ -10,6 +10,8 @@ const Layout = ({ children }) => {
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
+
+  console.log('Layout component rendering'); // Add console log
 
   return (
     <Box sx={{ display: 'flex', height: '100vh' }}>
@@ -24,7 +26,12 @@ const Layout = ({ children }) => {
           mt: 8,
           display: 'flex',
           flexDirection: 'column',
-          overflow: 'auto'
+          overflow: 'auto',
+          marginLeft: sidebarOpen ? '240px' : 0,
+          transition: (theme) => theme.transitions.create(['margin', 'width'], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          })
         }}
       >
         <Box sx={{ flexGrow: 1 }}>

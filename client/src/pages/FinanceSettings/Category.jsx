@@ -89,20 +89,13 @@ const Category = () => {
 
   const handleSubmit = async (values, { setSubmitting, resetForm }) => {
     try {
-      // If parent_category_id is an empty string, set it to null
-      const payload = {
-        ...values,
-        parent_category_id: values.parent_category_id || null
-      };
-
       if (editingCategory) {
-        await api.put(`/house/${selectedHouseId}/finance-category/${editingCategory.id}`, payload);
+        await api.put(`/api/house/${selectedHouseId}/finance-category/${editingCategory.id}`, values);
         showNotification('Categoria atualizada com sucesso!', 'success');
       } else {
-        await api.post(`/house/${selectedHouseId}/finance-category`, payload);
+        await api.post(`/api/house/${selectedHouseId}/finance-category`, values);
         showNotification('Categoria criada com sucesso!', 'success');
       }
-      
       resetForm();
       handleCloseDialog();
       fetchCategories();
@@ -117,7 +110,7 @@ const Category = () => {
   const handleDelete = async (category) => {
     if (window.confirm(`Deseja realmente excluir a categoria "${category.name}"?`)) {
       try {
-        await api.delete(`/house/${selectedHouseId}/finance-category/${category.id}`);
+        await api.delete(`/api/house/${selectedHouseId}/finance-category/${category.id}`);
         showNotification('Categoria excluída com sucesso!', 'success');
         fetchCategories();
       } catch (error) {

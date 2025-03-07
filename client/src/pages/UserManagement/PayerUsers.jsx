@@ -1,20 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
-  Alert,
-  Button,
   Dialog,
-  DialogTitle,
-  DialogContent,
   DialogActions,
-  MenuItem,
+  DialogContent,
+  DialogTitle,
+  TextField,
+  Button,
+  CircularProgress,
+  Snackbar,
+  Alert,
   FormControl,
   InputLabel,
   Select,
-  Typography,
-  Snackbar
+  MenuItem as MuiMenuItem
 } from '@mui/material';
-import { Formik, Form } from 'formik';
+import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 import EntityTable from '../../components/common/EntityTable';
 import api from '../../services/api';
@@ -42,32 +43,53 @@ const PayerUsers = () => {
   const selectedHouseId = localStorage.getItem('selectedHouseId');
 
   const fetchData = useCallback(async () => {
+    if (!selectedHouseId) return;
+    
     try {
       setLoading(true);
-      // Correct endpoint with /api prefix
+      
+      // Fetch payer users
       const payerUsersResponse = await api.get(`/api/house/${selectedHouseId}/finance-payer-users`);
+      
+      // Fetch payers
       const payersResponse = await api.get(`/api/house/${selectedHouseId}/finance-payer`);
+      
+      // Fetch users
       const usersResponse = await api.get(`/api/house/${selectedHouseId}/finance-users`);
       
-      setPayerUsers(payerUsersResponse.data);
+      // Process data with related information
+      const processedPayerUsers = payerUsersResponse.data.map(pu => {
+        const payer = payersResponse.data.find(p => p.id === pu.finance_payer_id);
+        const user = usersResponse.data.find(u => u.id === pu.user_id);
+        
+        return {
+          ...pu,
+          payer_name: payer ? payer.name : 'Desconhecido',
+          user_name: user ? user.name : 'Desconhecido'
+        };
+      });
+      
+      setPayerUsers(processedPayerUsers);
       setPayers(payersResponse.data);
       setUsers(usersResponse.data);
     } catch (error) {
       console.error('Error fetching data:', error);
-      showNotification('Erro ao carregar dados', 'error');
+      showNotification('Falha ao carregar dados', 'error');
     } finally {
       setLoading(false);
     }
-  }, [selectedHouseId]); // Include selectedHouseId as dependency
+  }, [selectedHouseId]);
 
   useEffect(() => {
-    if (selectedHouseId) {
-      fetchData();
-    }
+    fetchData();
   }, [selectedHouseId, fetchData]);
 
   const showNotification = (message, severity) => {
-    setNotification({ open: true, message, severity });
+    setNotification({
+      open: true,
+      message,
+      severity
+    });
   };
 
   const handleCloseDialog = () => {
@@ -92,37 +114,32 @@ const PayerUsers = () => {
   const handleSubmit = async (values, { setSubmitting, resetForm }) => {
     try {
       if (editPayerUser) {
-        await api.put(
-          `/api/house/${selectedHouseId}/finance-payer-users/${values.finance_payer_id}/user/${values.user_id}`,
-          { percentage: values.percentage }
-        );
-        showNotification('Relação atualizada com sucesso', 'success');
+        await api.put(`/api/house/${selectedHouseId}/finance-payer-users/${editPayerUser.finance_payer_id}/user/${editPayerUser.user_id}`, values);
+        showNotification('Usuário do pagador atualizado com sucesso', 'success');
       } else {
         await api.post(`/api/house/${selectedHouseId}/finance-payer-users`, values);
-        showNotification('Relação criada com sucesso', 'success');
+        showNotification('Usuário do pagador criado com sucesso', 'success');
       }
       handleCloseDialog();
       resetForm();
       fetchData();
     } catch (error) {
-      console.error('Error saving payer-user relationship:', error);
-      showNotification('Erro ao salvar relação', 'error');
+      console.error('Error saving payer user:', error);
+      showNotification('Erro ao salvar usuário do pagador', 'error');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async (payerUser) => {
-    if (window.confirm(`Deseja realmente excluir esta relação?`)) {
+    if (window.confirm(`Deseja realmente excluir o usuário "${payerUser.user_name}" do pagador "${payerUser.payer_name}"?`)) {
       try {
-        await api.delete(
-          `/api/house/${selectedHouseId}/finance-payer-users/${payerUser.finance_payer_id}/user/${payerUser.user_id}`
-        );
-        showNotification('Relação excluída com sucesso', 'success');
+        await api.delete(`/api/house/${selectedHouseId}/finance-payer-users/${payerUser.finance_payer_id}/user/${payerUser.user_id}`);
+        showNotification('Usuário do pagador excluído com sucesso', 'success');
         fetchData();
       } catch (error) {
-        console.error('Error deleting payer-user relationship:', error);
-        showNotification('Erro ao excluir relação', 'error');
+        console.error('Error deleting payer user:', error);
+        showNotification('Erro ao excluir usuário do pagador', 'error');
       }
     }
   };
@@ -137,7 +154,7 @@ const PayerUsers = () => {
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity="warning">
-          Por favor, selecione uma casa para gerenciar relações de pagadores e usuários.
+          Por favor, selecione uma casa para gerenciar Usuários Pagadores.
         </Alert>
       </Box>
     );
@@ -146,93 +163,114 @@ const PayerUsers = () => {
   return (
     <Box>
       <EntityTable
-        title="Relações entre Pagadores e Usuários"
+        title="Usuários Pagadores"
         data={payerUsers}
         columns={columns}
         isLoading={loading}
         onAdd={handleOpenAddDialog}
         onEdit={handleEdit}
         onDelete={handleDelete}
-        addButtonLabel="Nova Relação"
-      />
-      
-      <Snackbar 
-        open={notification.open} 
-        autoHideDuration={6000} 
-        onClose={handleCloseNotification}
-        message={notification.message} 
+        addButtonLabel="Novo Usuário Pagador"
       />
 
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {editPayerUser ? 'Editar Relação' : 'Nova Relação'}
+          {editPayerUser ? 'Editar Usuário Pagador' : 'Novo Usuário Pagador'}
         </DialogTitle>
         <Formik
           initialValues={{
             finance_payer_id: editPayerUser?.finance_payer_id || '',
             user_id: editPayerUser?.user_id || '',
-            percentage: editPayerUser?.percentage || ''
+            percentage: editPayerUser?.percentage || 100
           }}
           validationSchema={payerUserSchema}
           onSubmit={handleSubmit}
           enableReinitialize
         >
-          {({ isSubmitting, errors, touched, values, setFieldValue }) => (
+          {({ isSubmitting, errors, touched, values, handleChange }) => (
             <Form>
               <DialogContent>
                 <FormControl fullWidth margin="normal" error={touched.finance_payer_id && Boolean(errors.finance_payer_id)}>
-                  <InputLabel id="payer-label">Pagador</InputLabel>
+                  <InputLabel id="payer-select-label">Pagador</InputLabel>
                   <Select
-                    labelId="payer-label"
+                    labelId="payer-select-label"
+                    name="finance_payer_id"
                     value={values.finance_payer_id}
-                    onChange={(e) => setFieldValue('finance_payer_id', e.target.value)}
+                    onChange={handleChange}
                     label="Pagador"
-                    disabled={!!editPayerUser}
                   >
                     {payers.map(payer => (
-                      <MenuItem key={payer.id} value={payer.id}>{payer.name}</MenuItem>
+                      <MuiMenuItem key={payer.id} value={payer.id}>
+                        {payer.name}
+                      </MuiMenuItem>
                     ))}
                   </Select>
                   {touched.finance_payer_id && errors.finance_payer_id && (
-                    <Typography color="error" variant="caption">
+                    <Box component="span" sx={{ color: 'error.main', fontSize: '0.75rem', mt: 0.5 }}>
                       {errors.finance_payer_id}
-                    </Typography>
+                    </Box>
                   )}
                 </FormControl>
 
                 <FormControl fullWidth margin="normal" error={touched.user_id && Boolean(errors.user_id)}>
-                  <InputLabel id="user-label">Usuário</InputLabel>
+                  <InputLabel id="user-select-label">Usuário</InputLabel>
                   <Select
-                    labelId="user-label"
+                    labelId="user-select-label"
+                    name="user_id"
                     value={values.user_id}
-                    onChange={(e) => setFieldValue('user_id', e.target.value)}
+                    onChange={handleChange}
                     label="Usuário"
-                    disabled={!!editPayerUser}
                   >
                     {users.map(user => (
-                      <MenuItem key={user.id} value={user.id}>{user.name}</MenuItem>
+                      <MuiMenuItem key={user.id} value={user.id}>
+                        {user.name}
+                      </MuiMenuItem>
                     ))}
                   </Select>
                   {touched.user_id && errors.user_id && (
-                    <Typography color="error" variant="caption">
+                    <Box component="span" sx={{ color: 'error.main', fontSize: '0.75rem', mt: 0.5 }}>
                       {errors.user_id}
-                    </Typography>
+                    </Box>
                   )}
                 </FormControl>
 
+                <Field
+                  as={TextField}
+                  name="percentage"
+                  label="Porcentagem (%)"
+                  type="number"
+                  fullWidth
+                  margin="normal"
+                  error={touched.percentage && Boolean(errors.percentage)}
+                  helperText={touched.percentage && errors.percentage}
+                  inputProps={{ min: 1, max: 100 }}
+                />
               </DialogContent>
               <DialogActions>
-                <Button onClick={handleCloseDialog} color="primary">
-                  Cancelar
-                </Button>
-                <Button type="submit" color="primary" disabled={isSubmitting}>
-                  {editPayerUser ? 'Salvar' : 'Adicionar'}
+                <Button onClick={handleCloseDialog}>Cancelar</Button>
+                <Button 
+                  type="submit" 
+                  color="primary" 
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? <CircularProgress size={24} /> : 'Salvar'}
                 </Button>
               </DialogActions>
             </Form>
           )}
         </Formik>
       </Dialog>
+
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={6000}
+        onClose={handleCloseNotification}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert onClose={handleCloseNotification} severity={notification.severity}>
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

@@ -109,33 +109,38 @@ const Transactions = () => {
 
   const handleSubmit = async (values, { setSubmitting, resetForm }) => {
     try {
-      const payload = {
-        ...values,
-        transaction_date: values.transaction_date instanceof Date ? values.transaction_date.toISOString() : values.transaction_date,
-        amount: Number(values.amount)
-      };
-
       if (editingTransaction) {
-        await api.put(`/house/${selectedHouseId}/finance-transactions/${editingTransaction.id}`, payload);
-        showNotification('Transação atualizada com sucesso!', 'success');
+        await api.put(`/api/house/${selectedHouseId}/transactions/${editingTransaction.id}`, values);
+        showNotification('Transação atualizada com sucesso', 'success');
       } else {
-        await api.post(`/house/${selectedHouseId}/finance-transactions`, payload);
-        showNotification('Transação criada com sucesso!', 'success');
+        await api.post(`/api/house/${selectedHouseId}/transactions`, values);
+        showNotification('Transação criada com sucesso', 'success');
       }
-
-      // Refresh data and close dialog
+      handleCloseDialog();
       resetForm();
-      setDialogOpen(false);
       fetchTransactions();
     } catch (error) {
       console.error('Error saving transaction:', error);
-      showNotification(`Erro ao salvar transação: ${error.response?.data?.error || error.message}`, 'error');
+      showNotification('Erro ao salvar transação', 'error');
     } finally {
       setSubmitting(false);
     }
   };
 
-    const getStatusChip = (status) => {
+  const handleDelete = async (transaction) => {
+    if (window.confirm(`Deseja realmente excluir a transação "${transaction.description}"?`)) {
+      try {
+        await api.delete(`/api/house/${selectedHouseId}/transactions/${transaction.id}`);
+        showNotification('Transação excluída com sucesso', 'success');
+        fetchTransactions();
+      } catch (error) {
+        console.error('Error deleting transaction:', error);
+        showNotification('Erro ao excluir transação', 'error');
+      }
+    }
+  };
+
+  const getStatusChip = (status) => {
     let color, label;
     switch(status) {
         case 'completed':
