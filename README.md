@@ -1,147 +1,51 @@
 # Casa360
 
-Casa360 é um sistema full-stack para gestão financeira doméstica, ERP doméstico.
-A aplicação é composta por um back-end em Express (Node.js/TypeScript).  
-O propósito é auxiliar o gerenciamento de transações, contas recorrentes, pagos, carteiras e dashboards para controle financeiro.
+Casa360 é um sistema full-stack open source para gestão financeira doméstica – um verdadeiro ERP Doméstico. Nossa missão é ajudar pessoas e casais a administrar todos os aspectos de suas casas de forma integrada e estratégica, desde o controle financeiro até a gestão de tarefas, notas, comprovantes e afazeres.  
 
----
+## Visão e Motivação
+
+A tecnologia moderna nos proporciona uma visão estratégica através do armazenamento e análise de informações chave. Em um mundo onde cada indivíduo lida com inúmeros desafios pessoais e responsabilidades do lar, acreditamos que chegou o momento de adotar um sistema integrado que consolide todas as facetas da administração doméstica.  
+  
+Casa360 foi concebido para oferecer:
+- **Visão 360°:** Uma solução completa que integra controle financeiro, organização de tarefas e armazenamento de documentos e anotações.
+- **Gestão Estratégica:** Ao centralizar informações essenciais, o sistema permite que os usuários tenham uma visão ampla e detalhada de suas finanças e da administração do lar.
+- **Automação e Integração:** Com funcionalidades automatizadas, como controle de transações, parcelamentos e dashboards dinâmicos, a gestão do lar se torna mais eficiente e menos suscetível a erros.
+
+## Funcionalidades
+
+- **Gestão Financeira:** Controle de contas, entradas e saídas, parcelamentos, carteiras e geração automática de transações.
+- **Compras e RFPs Domésticos:** Cadastro e gestão de solicitações de compra, fornecedores e produtos, facilitando o processo de aquisição de bens e serviços.
+- **Organização de Tarefas e Afazeres:** Módulos para gerenciar tarefas diárias, anotações e armazenar comprovantes, garantindo que nenhum detalhe seja esquecido.
+- **Dashboards Interativos:** Visualização completa do status financeiro e operacional da casa, permitindo decisões mais estratégicas.
+- **Auditoria e Histórico:** Registro detalhado de todas as operações com logs de erros e histórico de alterações, garantindo transparência e rastreabilidade.
 
 ## Arquitetura do Projeto
 
-  - [Backend Documentation](server/README.md)
+Casa360 foi desenvolvido utilizando as mais modernas tecnologias para garantir desempenho, escalabilidade e segurança:
+
+- **Back-end:**  
+  - Framework: [Express](https://expressjs.com/)  
+  - Linguagem: Node.js com TypeScript  
+  - Banco de Dados: PostgreSQL (com triggers, funções e constraints robustas)
+
+- **Documentação:**  
+  - [Backend Documentation](server/README.md)  
   - [API Documentation](server/API.md)
 
+## Como Contribuir
 
-- **Backend (server/)**  
-  - **src/controllers/**: Lógica dos endpoints para cada entidade (ex.: FinanceEntries, Transactions, etc.).  
-  - **src/middleware/**: Autenticação, autorização e validação de acesso às casas.  
-  - **src/models/**: Representação das tabelas e esquemas de dados.  
-  - **src/routes/**: Definição das rotas da API.  
-  - **src/services/**: Funções de interação com o banco de dados.  
-  - **src/types/**: Tipos e interfaces TypeScript que garantem integridade dos dados.
-
-- **Frontend (client/)**  
-  - **src/components/**: Componentes reutilizáveis, layouts e views para as diferentes telas.  
-  - **src/hooks/**: Hooks customizados para comunicação com a API e gerenciamento de estado.  
-  - **src/services/api.ts**: Configuração e chamadas para os endpoints do back-end.  
-  - **src/utils/**: Funções auxiliares para formatação e validações.
-
----
-
-## Entidades e Relacionamentos
-
-### Tabelas Principais
-
-- **Users**: Cadastro dos usuários da casa.  
-- **Finance_Frequency**: Define a recorrência das transações (ex.: Mensal, Quinzenal, Anual).  
-- **Finance_CC**: Centros de Custo – identificação de áreas de gasto (ex.: Moradia, Pets, Saúde, Transporte).  
-- **Finance_Category**: Categorias financeiras associadas a um centro de custo (ex.: Água & Esgoto, Alimentação).  
-- **Finance_Payer**: Cadastro para definir carteiras ou pagadores (ex.: User1, User2, Casal).  
-- **Finance_Payer_Users**: Define a distribuição percentual de pagamento entre os usuários de uma carteira/pagador.  
-- **Finance_Currency**: Moedas utilizadas nas transações (ex.: BRL, USD).  
-- **Finance_Entries**: Tabela chave para cadastro de entradas e saídas financeiras; vincula informações de moeda, categoria, centro de custo, frequência, usuário, data de início, quantidade de parcelas ou data final e valor.  
-- **Finance_Installments**: Geração automática (ou manual) das parcelas derivadas de uma entrada financeira. Acompanham status (pending, paid, overdue) e servem de base para as transações.  
-- **Transactions**: Registra as baixas efetivadas nas entradas/saídas. A partir dessa tabela iniciam as automações no DRE e a atualização das carteiras dos usuários.
-
----
-
-## Funcionalidades do Sistema
-
-### Cadastro e Configuração
-
-- **Usuários**: Cadastro simples com nome, e-mail e, possivelmente, senha.
-- **Frequência**: Definir intervalos de pagamento/recebimento, como “Mensal (30 dias)”, “Quinzenal (15 dias)” ou “Anual (365 dias)”.
-- **Centros de Custo e Categorias**: 
-  - Exemplo:
-    - **Moradia**: Categorias como Água e Esgoto.
-    - **Pets**: Categorias de Alimentação.
-    - **Saúde**: Categorias de Atividades.
-    - **Transporte**: Categorias de Deslocamento.
-    - **Alimentação**: Pode ter subcategoria para Compras Mensais.
-- **Pagadores e Distribuição**:  
-  - Cadastrar pagadores em que os usuários podem ser responsáveis por 100% individualmente ou de forma compartilhada (ex.: 50/50 no caso “Casal”).
-- **Moedas**: Definir as moedas aceitas, possibilitando conversão e múltiplos tipos de transações.
-
-### Gestão de Entradas e Saídas
-
-- **Finance_Entries**:  
-  É aqui que são cadastradas todas as transações recorrentes (ex.: aluguel, salário).  
-  - Entrada de salário ou outra receita: Cadastro com data de início, valor, quantidade de parcelas (ou data final) e demais metadados.
-  - Saídas como Aluguel: Cadastro similar onde a recorrência e a data determinam a criação das parcelas.
-- **Finance_Installments**:  
-  A partir dos registros em Finance_Entries, o sistema gera parcelas automáticas.  
-  - Cada parcela acompanha a data de vencimento, valor, status (pending, paid, overdue) e, quando realizada uma baixa, será registrada em Transactions.
+Casa360 é um projeto open source e suas contribuições são muito bem-vindas! Se você deseja melhorar ou expandir as funcionalidades do sistema, siga as orientações:
   
-### Registros de Transações e Baixas
+1. **Fork** o repositório.
+2. Crie uma **branch** com a sua feature ou correção: `git checkout -b minha-feature`.
+3. Faça os **commits** com mensagens claras.
+4. Envie um **Pull Request** detalhando as mudanças realizadas.
+5. Aguarde a revisão e feedback.
 
-- **Transactions**:
-  - Sempre que uma parcela for efetivamente baixa (paga ou recebida), um registro é criado nesta tabela.
-  - Essa ação trigger automações para atualizar a carteira de cada usuário conforme sua participação (Finance_Payer_Users).
-  
-### Atualização de Carteiras
+## Instalação e Execução
 
-- As transações impactam as “wallets” dos usuários, permitindo que o sistema acompanhe o saldo real de cada um.
-- Atualizações automáticas ocorrem sempre que há uma baixa na parcela, garantindo a consistência do fluxo financeiro.
-
----
-
-## Possíveis Telas (Front-end)
-
-1. **Dashboard Geral**  
-   - Visão do fluxo de caixa (diário, mensal e anual).
-   - Widgets para receita, despesas e saldo.
-   - Gráficos e visões Kanban (por exemplo, um Planner para parcelas pendentes).
-
-2. **Tela de Cadastro/Configuração**  
-   - **Usuários**: Gerenciamento dos usuários.
-   - **Configuração Financeira**: Tela para cadastro das frequências, centros de custo, categorias, pagadores, usuários de pagadores e moedas.
-   
-3. **Tela de Gestão de Entradas e Saídas**  
-   - Formulário para cadastro de novas entradas ou saídas.
-   - Listagem dessas entradas com opções de edição ou remoção.
-   - Visualização do histórico de parcelas geradas com status (usável também para controle Kanban).
-
-4. **Tela de Transações**  
-   - Listagem de todas as transações concretizadas.
-   - Filtros por data, status e responsável.
-   - Histórico de alterações na carteira dos usuários.
-
-5. **Tela de Relatórios/DRE**  
-   - Relatórios dinâmicos de fluxo de caixa.
-   - Sumários e gráficos das receitas e despesas.
-   - Visualizacao das variações na “wallet” de cada usuário.
-
----
-
-## Fluxo de Uso do Sistema
-
-1. **Configuração Inicial**  
-   O administrador cadastra os dados básicos: usuários, frequências, centros de custo, categorias, pagadores e moedas.
-
-2. **Cadastro de Entradas/Saídas**  
-   O usuário cadastra uma nova entrada/saída informando:  
-   - Dados financeiros (valor, data de início, recorrência, número de parcelas ou data final).  
-   - Vinculação aos cadastros já configurados (categoria, centro de custo, pagador, moeda).
-
-3. **Geração Automática de Parcelas**  
-   O sistema gera as parcelas a partir do cadastro.  
-   - Verifica, em tempo real, se alguma parcela está vencida ou aberta.
-   - Permite a edição manual caso necessário.
-
-4. **Registro de Transações e Atualização de Carteiras**  
-   Ao realizar a baixa em uma parcela, o sistema:  
-   - Cria um registro na tabela Transactions.  
-   - Executa a automação que atualiza a carteira dos usuários conforme as porcentagens definidas.
-
-5. **Acompanhamento Visual (Kanban/Planner)**  
-   A tela de Kanban exibe todas as faturas em aberto, pagas e pendentes, facilitando o gerenciamento e tomada de decisão.
-
----
-
-## Considerações Finais
-
-- **Autenticação e Segurança**: Todas as rotas protegidas exigem autenticação via JWT.
-- **Validação e Integridade dos Dados**: Os cadastros são rigorosamente validados (datas, valores positivos, somatória de percentuais igual a 100, etc.).
-- **Escalabilidade e Performance**: A separação do sistema em micro-serviços e a estruturação dos relacionamentos no banco de dados visam escalabilidade e performance.
-- **Integração com Outras Ferramentas**: Possibilidade de integração com outros sistemas ERP e de relatórios, consolidando uma visão ampla da saúde financeira da casa.
-
+1. **Clone o Repositório:**
+   ```bash
+   git clone https://github.com/seu-usuario/casa360.git
+   cd casa360
+   ```
