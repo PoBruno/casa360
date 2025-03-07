@@ -1,13 +1,13 @@
-import { Router, Request, Response } from 'express';
-import { createHouse, getHousesByUser } from '../controllers/houseController';
+import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
+import { createHouse, getUserHouses } from '../controllers/houseController';
 
-const router = Router({ mergeParams: true });
+const router = Router();
 
-// Rota para criar uma nova casa
+// Create a new house
 router.post('/', authenticate, createHouse);
 
-// Rota para obter casas por usuário
-router.get('/', authenticate, getHousesByUser);
+// Get all houses for the authenticated user
+router.get('/my-houses', authenticate, getUserHouses);
 
 export default router;
