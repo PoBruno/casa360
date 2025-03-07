@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://104.41.48.116:3000',
+  baseURL: import.meta.env.VITE_API_URL || 'http://104.41.48.116:3000',
 });
 
 // Add request interceptor for authentication
