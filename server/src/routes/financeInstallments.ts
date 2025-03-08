@@ -4,6 +4,7 @@ import { validateHouseAccess } from '../middleware/houseAuth';
 import {  
   getFinanceInstallments,
   getFinanceInstallmentById,
+  createFinanceInstallment,
   updateInstallmentStatus,
   updateFinanceInstallment,
   deleteFinanceInstallment,
@@ -15,6 +16,7 @@ const houseMiddleware = [authenticate, validateHouseAccess];
 
 router.get('/', houseMiddleware, getFinanceInstallments);
 router.get('/:id', houseMiddleware, getFinanceInstallmentById);
+router.post('/', houseMiddleware, createFinanceInstallment);
 router.put('/:id/status', houseMiddleware, updateInstallmentStatus);
 router.put('/:id', houseMiddleware, updateFinanceInstallment);
 router.patch('/:id', houseMiddleware, patchFinanceInstallment);

@@ -202,7 +202,7 @@ CREATE TABLE Finance_Entries (
     FOREIGN KEY (finance_cc_id) REFERENCES Finance_CC(id) ON DELETE CASCADE,
     FOREIGN KEY (finance_category_id) REFERENCES Finance_Category(id) ON DELETE CASCADE,
     FOREIGN KEY (finance_payer_id) REFERENCES Finance_Payer(id) ON DELETE CASCADE,
-FOREIGN KEY (finance_currency_id) REFERENCES Finance_Currency(id) ON DELETE CASCADE,
+    FOREIGN KEY (finance_currency_id) REFERENCES Finance_Currency(id) ON DELETE CASCADE,
     FOREIGN KEY (finance_frequency_id) REFERENCES Finance_Frequency(id) ON DELETE SET NULL
 );
 
@@ -216,11 +216,28 @@ CREATE TABLE Finance_Installments (
     installment_number INT NOT NULL,
     due_date DATE NOT NULL,
     amount DECIMAL(10,2) NOT NULL,
-    status VARCHAR(50) DEFAULT 'pending',
+    status BOOLEAN DEFAULT 0,
+    category VARCHAR(50),
+    priority INT,
+    assignee VARCHAR(100),
+    comments TEXT,
+    tags TEXT[],
+    history JSONB DEFAULT '{}',
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
-    FOREIGN KEY (finance_entries_id) REFERENCES Finance_Entries(id) ON DELETE CASCADE
-    CONSTRAINT uq_installment UNIQUE (finance_entries_id, installment_number),
+    task BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (finance_entries_id) REFERENCES Finance_Entries(id) ON DELETE CASCADE,
+    CONSTRAINT uq_installment UNIQUE (finance_entries_id, installment_number)
+);
+
+CREATE TABLE Kanban_Buckets (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    position INT NOT NULL,
+    filter JSONB DEFAULT NULL,
+    config JSONB DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE TRIGGER trg_update_finance_installments_updated_at
@@ -233,7 +250,7 @@ CREATE TABLE Transactions (
     finance_installments_id INT NOT NULL,            
     transaction_date TIMESTAMP DEFAULT NOW(),        
     amount DECIMAL(10,2) NOT NULL CHECK (amount > 0),
-is_income BOOLEAN NOT NULL,                      
+    is_income BOOLEAN NOT NULL,                      
     description TEXT,                                
     status VARCHAR(50) DEFAULT 'pending',            
     created_at TIMESTAMP DEFAULT NOW(),
