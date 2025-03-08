@@ -14,7 +14,10 @@ import {
   Tab,
   Avatar,
   Switch,
-  FormControlLabel
+  FormControlLabel,
+  FormControl,
+  FormLabel,
+  FormHelperText
 } from '@mui/material';
 import {
   Person as PersonIcon,
@@ -89,7 +92,7 @@ const Configuration = () => {
     dueNotifications: true,
     financialAlerts: false
   });
-  const { theme, toggleTheme } = useContext(ThemeContext); // Use ThemeContext
+  const { theme, toggleTheme, showSidebarTooltips, toggleSidebarTooltips } = useContext(ThemeContext); // Use ThemeContext
 
   useEffect(() => {
     if (user) {
@@ -519,6 +522,26 @@ const Configuration = () => {
                 Tema Escuro
               </Button>
             </Box>
+          </Box>
+
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="subtitle1" gutterBottom fontWeight="medium">
+              Tooltips da Barra Lateral
+            </Typography>
+            <Typography variant="body2" color="textSecondary" paragraph>
+              Habilite ou desabilite a exibição de dicas (tooltips) quando a barra lateral estiver colapsada.
+            </Typography>
+
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showSidebarTooltips}
+                  onChange={() => toggleSidebarTooltips()}
+                  color="primary"
+                />
+              }
+              label="Exibir tooltips"
+            />
           </Box>
           
           <Divider sx={{ my: 3 }} />

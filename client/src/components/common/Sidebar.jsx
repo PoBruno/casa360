@@ -24,7 +24,7 @@ import {
   AccountBalanceWallet as WalletIcon
 } from '@mui/icons-material';
 
-const drawerWidth = 240;
+const drawerWidth = 40;
 
 const menuItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },

@@ -22,12 +22,14 @@ const Layout = ({ children }) => {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
+          px: 3,
+          py: 3,
           mt: 8,
           display: 'flex',
           flexDirection: 'column',
           overflow: 'auto',
-          marginLeft: sidebarOpen ? '240px' : 0,
+          // Adjust margin based on sidebar state
+          marginLeft: sidebarOpen ? '25px' : '64px', 
           transition: (theme) => theme.transitions.create(['margin', 'width'], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,

@@ -4,9 +4,7 @@ import {
   Drawer,
   Divider,
   Toolbar,
-  Typography,
   List,
-  alpha
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -27,7 +25,9 @@ import MenuItem from './MenuItem';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { HouseContext } from '../contexts/HouseContext';
 
-const drawerWidth = 240;
+// Define both widths for expanded and collapsed states
+const drawerWidth = 300;
+const collapsedDrawerWidth = 80;
 
 const Sidebar = ({ open }) => {
   const { theme } = useContext(ThemeContext);
@@ -38,12 +38,12 @@ const Sidebar = ({ open }) => {
     <Drawer
       variant="persistent"
       anchor="left"
-      open={open}
+      open={true} // Always keep drawer open, but change its width
       sx={{
-        width: drawerWidth,
+        width: open ? drawerWidth : collapsedDrawerWidth,
         flexShrink: 0,
         '& .MuiDrawer-paper': {
-          width: drawerWidth,
+          width: open ? drawerWidth : collapsedDrawerWidth,
           boxSizing: 'border-box',
           borderRight: '1px solid',
           borderColor: 'divider',
@@ -52,90 +52,137 @@ const Sidebar = ({ open }) => {
             'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(250,252,255,0.98) 100%)',
           backdropFilter: 'blur(10px)',
           boxShadow: isDark ? '5px 0 15px rgba(0,0,0,0.2)' : '2px 0 8px rgba(0,0,0,0.1)',
-          transition: 'all 0.3s ease',
+          transition: 'width 0.3s ease',
+          overflowX: 'hidden', // Prevent horizontal overflow
+          overflowY: 'auto', // Allow vertical scrolling in both states
         },
       }}
     >
-      <Toolbar 
-        sx={{ 
-          display: 'flex',
-          justifyContent: 'center',
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-          py: 1
-        }}
-      >
-        <Typography 
-          variant="h6" 
-          sx={{ 
-            fontWeight: 700,
-            background: isDark ? 
-              'linear-gradient(45deg, #64B5F6 30%, #42A5F5 90%)' : 
-              'linear-gradient(45deg, #1565C0 30%, #1976D2 90%)',
-            backgroundClip: 'text',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}
-        >
-          Casa 360
-        </Typography>
-      </Toolbar>
-      
-      <Box 
-        sx={{ 
-          overflow: 'auto',
-          py: 2,
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column'
-        }}
-      >
-        <List component="nav" disablePadding>
-          <MenuItem title="Dashboard" icon={<DashboardIcon />} to="/" />
-          <MenuItem title="Casa" icon={<HomeIcon />} to="/casa" />
+      <Toolbar />
+      <Box sx={{ overflow: 'hidden' }}>
+        <List>
+          <MenuItem 
+            title="Dashboard" 
+            icon={<DashboardIcon />} 
+            to="/" 
+            collapsed={!open}
+          />
+          <MenuItem 
+            title="Casa" 
+            icon={<HomeIcon />} 
+            to="/casa" 
+            collapsed={!open}
+          />
           
           <Divider sx={{ my: 1.5, mx: 2, opacity: 0.6 }} />
           
           {selectedHouseId && (
             <>
-              <MenuGroup id="finance-settings" title="Configurações Financeiras" icon={<SettingsIcon />}>
-                <MenuItem title="Frequência" icon={<ScheduleIcon />} to="/finance-settings/frequency" nested />
-                <MenuItem title="Centro de Custo" icon={<AccountBalanceIcon />} to="/finance-settings/cost-center" nested />
-                <MenuItem title="Categorias" icon={<CategoryIcon />} to="/finance-settings/category" nested />
-                <MenuItem title="Moedas" icon={<MoneyIcon />} to="/finance-settings/currency" nested />
+              <MenuGroup 
+                id="finance-settings" 
+                title="Configurações Financeiras" 
+                icon={<SettingsIcon />}
+                collapsed={!open}
+              >
+                <MenuItem 
+                  title="Frequência" 
+                  icon={<ScheduleIcon />} 
+                  to="/finance-settings/frequency" 
+                  nested 
+                  collapsed={!open} 
+                />
+                <MenuItem 
+                  title="Centro de Custo" 
+                  icon={<AccountBalanceIcon />} 
+                  to="/finance-settings/cost-center" 
+                  nested 
+                  collapsed={!open} 
+                />
+                <MenuItem 
+                  title="Categorias" 
+                  icon={<CategoryIcon />} 
+                  to="/finance-settings/category" 
+                  nested 
+                  collapsed={!open} 
+                />
+                <MenuItem 
+                  title="Moedas" 
+                  icon={<MoneyIcon />} 
+                  to="/finance-settings/currency" 
+                  nested 
+                  collapsed={!open} 
+                />
               </MenuGroup>
               
-              <MenuGroup id="user-management" title="Gestão de Usuários" icon={<PeopleIcon />}>
-                <MenuItem title="Pagadores" icon={<PersonIcon />} to="/user-management/payer" nested />
-                <MenuItem title="Usuários" icon={<PersonIcon />} to="/user-management/users" nested />
-                <MenuItem title="Usuários Pagadores" icon={<PeopleIcon />} to="/user-management/payer-users" nested />
+              <MenuGroup 
+                id="user-management" 
+                title="Gestão de Usuários" 
+                icon={<PeopleIcon />}
+                collapsed={!open}
+              >
+                <MenuItem 
+                  title="Pagadores" 
+                  icon={<PersonIcon />} 
+                  to="/user-management/payer" 
+                  nested 
+                  collapsed={!open} 
+                />
+                <MenuItem 
+                  title="Usuários" 
+                  icon={<PersonIcon />} 
+                  to="/user-management/users" 
+                  nested 
+                  collapsed={!open} 
+                />
+                <MenuItem 
+                  title="Usuários Pagadores" 
+                  icon={<PeopleIcon />} 
+                  to="/user-management/payer-users" 
+                  nested 
+                  collapsed={!open} 
+                />
               </MenuGroup>
               
-              <MenuGroup id="finance-operations" title="Operações Financeiras" icon={<FinanceIcon />}>
-                <MenuItem title="Entradas" icon={<ReceiptIcon />} to="/finance-operations/entries" nested />
-                <MenuItem title="Parcelas" icon={<PaymentIcon />} to="/finance-operations/installments" nested />
-                <MenuItem title="Transações" icon={<PaymentIcon />} to="/finance-operations/transactions" nested />
+              <MenuGroup 
+                id="finance-operations" 
+                title="Operações Financeiras" 
+                icon={<FinanceIcon />}
+                collapsed={!open}
+              >
+                <MenuItem 
+                  title="Entradas" 
+                  icon={<ReceiptIcon />} 
+                  to="/finance-operations/entries" 
+                  nested 
+                  collapsed={!open} 
+                />
+                <MenuItem 
+                  title="Parcelas" 
+                  icon={<PaymentIcon />} 
+                  to="/finance-operations/installments" 
+                  nested 
+                  collapsed={!open} 
+                />
+                <MenuItem 
+                  title="Transações" 
+                  icon={<PaymentIcon />} 
+                  to="/finance-operations/transactions" 
+                  nested 
+                  collapsed={!open} 
+                />
               </MenuGroup>
             </>
           )}
           
           <Divider sx={{ my: 1.5, mx: 2, opacity: 0.6 }} />
           
-          <MenuItem title="Configurações" icon={<SettingsIcon />} to="/settings/configuration" />
+          <MenuItem 
+            title="Configurações" 
+            icon={<SettingsIcon />} 
+            to="/settings/configuration" 
+            collapsed={!open}
+          />
         </List>
-        
-        <Box sx={{ mt: 'auto', p: 2 }}>
-          <Typography 
-            variant="caption" 
-            sx={{ 
-              display: 'block', 
-              textAlign: 'center',
-              opacity: 0.6
-            }}
-          >
-            Casa360 © 2025
-          </Typography>
-        </Box>
       </Box>
     </Drawer>
   );
