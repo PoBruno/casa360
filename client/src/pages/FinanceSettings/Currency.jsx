@@ -73,10 +73,10 @@ const Currency = () => {
   const handleSubmit = async (values, { setSubmitting, resetForm }) => {
     try {
       if (editingCurrency) {
-        await api.put(`/house/${selectedHouseId}/finance-currency/${editingCurrency.id}`, values);
+        await api.put(`/api/house/${selectedHouseId}/finance-currency/${editingCurrency.id}`, values);
         showNotification('Moeda atualizada com sucesso', 'success');
       } else {
-        await api.post(`/house/${selectedHouseId}/finance-currency`, values);
+        await api.post(`/api/house/${selectedHouseId}/finance-currency`, values);
         showNotification('Moeda criada com sucesso', 'success');
       }
       handleCloseDialog();
@@ -93,7 +93,7 @@ const Currency = () => {
   const handleDelete = async (currency) => {
     if (window.confirm(`Deseja realmente excluir a moeda "${currency.name}"?`)) {
       try {
-        await api.delete(`/house/${selectedHouseId}/finance-currency/${currency.id}`);
+        await api.delete(`/api/house/${selectedHouseId}/finance-currency/${currency.id}`);
         showNotification('Moeda excluída com sucesso', 'success');
         fetchCurrencies();
       } catch (error) {

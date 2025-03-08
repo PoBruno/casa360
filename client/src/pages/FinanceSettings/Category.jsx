@@ -33,7 +33,6 @@ const categorySchema = Yup.object().shape({
 
 const Category = () => {
   const [categories, setCategories] = useState([]);
-  const [parentCategories, setParentCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
@@ -41,11 +40,35 @@ const Category = () => {
   
   const selectedHouseId = localStorage.getItem('selectedHouseId');
 
+  // Função separada para buscar apenas categorias de alto nível (sem pais)
+  // para usar como opções de categoria pai
+  const fetchParentCategories = useCallback(async () => {
+    if (!selectedHouseId) return;
+    
+    try {
+      const response = await api.get(`/api/house/${selectedHouseId}/finance-category`);
+      // Filtramos apenas categorias que podem ser pais
+      // Excluímos a categoria que está sendo editada para evitar referência circular
+      const possibleParents = response.data.filter(cat => 
+        editingCategory ? cat.id !== editingCategory.id : true
+      );
+      
+      return possibleParents;
+    } catch (error) {
+      console.error('Error fetching parent categories:', error);
+      return [];
+    }
+  }, [selectedHouseId, editingCategory]);
+
   const fetchCategories = useCallback(async () => {
+    if (!selectedHouseId) return;
+    
     try {
       setLoading(true);
       const response = await api.get(`/api/house/${selectedHouseId}/finance-category`);
       setCategories(response.data);
+      
+      return response.data;
     } catch (error) {
       console.error('Error fetching categories:', error);
       showNotification('Falha ao carregar categorias', 'error');
@@ -77,32 +100,25 @@ const Category = () => {
     setNotification(prev => ({ ...prev, open: false }));
   };
 
-  const handleOpenAddDialog = () => {
+  const handleOpenAddDialog = async () => {
     setEditingCategory(null);
     setDialogOpen(true);
   };
 
-  const handleOpenEditDialog = (category) => {
+  const handleOpenEditDialog = async (category) => {
     setEditingCategory(category);
     setDialogOpen(true);
   };
 
   const handleSubmit = async (values, { setSubmitting, resetForm }) => {
     try {
-      // If parent_category_id is an empty string, set it to null
-      const payload = {
-        ...values,
-        parent_category_id: values.parent_category_id || null
-      };
-
       if (editingCategory) {
-        await api.put(`/house/${selectedHouseId}/finance-category/${editingCategory.id}`, payload);
+        await api.put(`/api/house/${selectedHouseId}/finance-category/${editingCategory.id}`, values);
         showNotification('Categoria atualizada com sucesso!', 'success');
       } else {
-        await api.post(`/house/${selectedHouseId}/finance-category`, payload);
+        await api.post(`/api/house/${selectedHouseId}/finance-category`, values);
         showNotification('Categoria criada com sucesso!', 'success');
       }
-      
       resetForm();
       handleCloseDialog();
       fetchCategories();
@@ -115,9 +131,20 @@ const Category = () => {
   };
 
   const handleDelete = async (category) => {
+    // Verificar se a categoria tem subcategorias
+    const hasChildren = categories.some(cat => cat.parent_category_id === category.id);
+    
+    if (hasChildren) {
+      showNotification(
+        'Esta categoria possui subcategorias. Remova as subcategorias primeiro.',
+        'warning'
+      );
+      return;
+    }
+
     if (window.confirm(`Deseja realmente excluir a categoria "${category.name}"?`)) {
       try {
-        await api.delete(`/house/${selectedHouseId}/finance-category/${category.id}`);
+        await api.delete(`/api/house/${selectedHouseId}/finance-category/${category.id}`);
         showNotification('Categoria excluída com sucesso!', 'success');
         fetchCategories();
       } catch (error) {
@@ -207,22 +234,27 @@ const Category = () => {
                   <InputLabel id="parent-category-label">Categoria Pai</InputLabel>
                   <Select
                     labelId="parent-category-label"
-                    value={values.parent_category_id}
+                    value={values.parent_category_id || ''}
                     onChange={(e) => setFieldValue('parent_category_id', e.target.value)}
                     label="Categoria Pai"
                   >
                     <MenuItem value="">
                       <em>Nenhuma</em>
                     </MenuItem>
-                    {parentCategories.map((category) => (
-                      <MenuItem 
-                        key={category.id} 
-                        value={category.id}
-                        disabled={editingCategory && editingCategory.id === category.id}
-                      >
-                        {category.name}
-                      </MenuItem>
-                    ))}
+                    {categories
+                      .filter(category => 
+                        // Evitar referência circular (não permitir selecionar a si mesmo)
+                        editingCategory ? category.id !== editingCategory.id : true
+                      )
+                      .map((category) => (
+                        <MenuItem 
+                          key={category.id} 
+                          value={category.id}
+                        >
+                          {category.name}
+                        </MenuItem>
+                      ))
+                    }
                   </Select>
                 </FormControl>
 
@@ -255,6 +287,7 @@ const Category = () => {
         open={notification.open}
         autoHideDuration={6000}
         onClose={handleCloseNotification}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
         <Alert onClose={handleCloseNotification} severity={notification.severity}>
           {notification.message}

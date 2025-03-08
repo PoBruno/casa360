@@ -1,11 +1,13 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import React, { useContext } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider as MuiThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 
 // Context Providers
 import { AuthProvider } from './contexts/AuthContext';
 import { HouseProvider } from './contexts/HouseContext';
+import { MenuProvider } from './contexts/MenuContext';
+import { ThemeContext } from './contexts/ThemeContext';
 
 // Layout Components
 import Layout from './components/common/Layout';
@@ -14,138 +16,197 @@ import Layout from './components/common/Layout';
 import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
 
-// Main Pages
-import Dashboard from './pages/Dashboard/Dashboard';
-import Casa from './pages/Casa/Casa';
-import Frequency from './pages/Frequency/Frequency';
-import CostCenter from './pages/CostCenter/CostCenter';
-import Category from './pages/Category/Category';
-import Payer from './pages/Payer/Payer';
-import PayerUsers from './pages/PayerUsers/PayerUsers';
-import Currency from './pages/Currency/Currency';
-import Entries from './pages/Entries/Entries';
-import Installments from './pages/Installments/Installments';
-import Transactions from './pages/Transactions/Transactions';
+// Routes
+import routes from './routes';
 
+// Debug Components
 import ApiDebugger from './components/debug/ApiDebugger';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('token');
+  console.log('ProtectedRoute component rendering', { token });
   if (!token) {
     return <Navigate to="/login" replace />;
   }
   return children;
 };
 
-// Create MUI Theme
-const theme = createTheme({
+// Create MUI Theme with better contrast and accessibility
+const lightTheme = createTheme({
   palette: {
     primary: {
-      main: '#1976d2',
+      main: '#1565C0', // Deeper blue for better contrast
+      light: '#4791db',
+      dark: '#0D47A1',
+      contrastText: '#ffffff',
     },
     secondary: {
-      main: '#f50057',
+      main: '#E91E63', // More vibrant pink
+      light: '#F48FB1',
+      dark: '#C2185B',
+      contrastText: '#ffffff',
+    },
+    background: {
+      default: '#f5f7fa', // Subtle off-white for less eye strain
+      paper: '#ffffff',   // Pure white for cards
+    },
+    text: {
+      primary: '#212121', // Very dark gray, almost black
+      secondary: '#5f6368', // Medium gray for secondary text
+    },
+  },
+  typography: {
+    fontFamily: "'Roboto', 'Helvetica', 'Arial', sans-serif",
+    h5: {
+      fontWeight: 500,
+    },
+    h6: {
+      fontWeight: 500,
+    },
+    subtitle1: {
+      fontWeight: 500,
+    },
+  },
+  components: {
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+        },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          textTransform: 'none',
+          fontWeight: 500,
+        },
+      },
+    },
+  },
+});
+
+const darkTheme = createTheme({
+  palette: {
+    mode: 'dark',
+    primary: {
+      main: '#64B5F6', // Brighter blue that stands out on dark backgrounds
+      light: '#90CAF9',
+      dark: '#42A5F5',
+      contrastText: '#000000', // Black text on bright blue for better contrast
+    },
+    secondary: {
+      main: '#FF4081', // Bright pink that pops on dark backgrounds
+      light: '#FF80AB',
+      dark: '#F50057',
+      contrastText: '#000000', // Black text on bright pink
+    },
+    background: {
+      default: '#121212', // Darker background
+      paper: 'rgba(37, 37, 37, 0.9)', // Less transparent for better contrast
+    },
+    text: {
+      primary: '#FFFFFF', // Pure white for main text
+      secondary: '#B0BEC5', // Lighter gray-blue for secondary text
+    },
+    divider: 'rgba(255, 255, 255, 0.15)', // More visible divider
+  },
+  typography: {
+    fontFamily: "'Roboto', 'Helvetica', 'Arial', sans-serif",
+    h5: {
+      fontWeight: 500,
+    },
+    h6: {
+      fontWeight: 500,
+    },
+    subtitle1: {
+      fontWeight: 500,
+    },
+  },
+  components: {
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backdropFilter: 'blur(8px)',
+          boxShadow: '0 8px 20px 0 rgba(0, 0, 0, 0.5)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0))',
+        },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        contained: {
+          boxShadow: '0 3px 10px 0 rgba(0, 0, 0, 0.3)',
+        },
+        outlined: {
+          borderColor: 'rgba(255, 255, 255, 0.3)',
+        },
+      },
+    },
+    MuiTableCell: {
+      styleOverrides: {
+        head: {
+          fontWeight: 600,
+          backgroundColor: 'rgba(50, 50, 50, 0.8)',
+        },
+      },
+    },
+    MuiListItem: {
+      styleOverrides: {
+        root: {
+          '&.Mui-selected': {
+            backgroundColor: 'rgba(100, 181, 246, 0.2)',
+          },
+        },
+      },
     },
   },
 });
 
 function App() {
+  // Use the ThemeContext to get the current theme
+  const { theme } = useContext(ThemeContext);
+
+  // Determine which theme to use based on the theme context
+  const currentTheme = theme === 'light' ? lightTheme : darkTheme;
+
+  console.log('App component rendering with theme:', theme); // Debug log
+
   return (
-    <ThemeProvider theme={theme}>
+    <MuiThemeProvider theme={currentTheme}>
       <CssBaseline />
       <AuthProvider>
         <HouseProvider>
-          <BrowserRouter>
+          <MenuProvider>
             <Routes>
               {/* Auth Routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               
-              {/* Protected Routes */}
-              <Route path="/" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Dashboard />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/casa" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Casa />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/frequency" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Frequency />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/cost-center" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <CostCenter />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/category" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Category />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/payer" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Payer />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/payer-users" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <PayerUsers />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/currency" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Currency />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/entries" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Entries />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/installments" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Installments />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/transactions" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Transactions />
-                  </Layout>
-                </ProtectedRoute>
-              } />
+              {/* Protected Routes - Generated from routes configuration */}
+              {routes.map((route) => (
+                <Route 
+                  key={route.path} 
+                  path={route.path}
+                  element={
+                    <ProtectedRoute>
+                      <Layout>
+                        <route.component />
+                      </Layout>
+                    </ProtectedRoute>
+                  }
+                />
+              ))}
             </Routes>
-          </BrowserRouter>
+            
+            {/* Debug tool */}
+            <ApiDebugger />
+          </MenuProvider>
         </HouseProvider>
       </AuthProvider>
-      {process.env.NODE_ENV === 'development' && <ApiDebugger />}
-    </ThemeProvider>
+    </MuiThemeProvider>
   );
 }
 

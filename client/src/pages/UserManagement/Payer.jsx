@@ -81,10 +81,10 @@ const Payer = () => {
   const handleSubmit = async (values, { setSubmitting, resetForm }) => {
     try {
       if (editingPayer) {
-        await api.put(`/house/${selectedHouseId}/finance-payer/${editingPayer.id}`, values);
+        await api.put(`/api/house/${selectedHouseId}/finance-payer/${editingPayer.id}`, values);
         showNotification('Pagador atualizado com sucesso', 'success');
       } else {
-        await api.post(`/house/${selectedHouseId}/finance-payer`, values);
+        await api.post(`/api/house/${selectedHouseId}/finance-payer`, values);
         showNotification('Pagador criado com sucesso', 'success');
       }
       handleCloseDialog();
@@ -101,7 +101,7 @@ const Payer = () => {
   const handleDelete = async (payer) => {
     if (window.confirm(`Deseja realmente excluir o pagador "${payer.name}"?`)) {
       try {
-        await api.delete(`/house/${selectedHouseId}/finance-payer/${payer.id}`);
+        await api.delete(`/api/house/${selectedHouseId}/finance-payer/${payer.id}`);
         showNotification('Pagador excluído com sucesso', 'success');
         fetchPayers();
       } catch (error) {
