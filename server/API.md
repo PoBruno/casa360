@@ -262,7 +262,14 @@ DELETE /finance-installments/{id}
   "finance_entries_id": "number",
   "installment_number": "number",
   "due_date": "date",
-  "amount": "number"
+  "amount": "number",
+  "status": "string",
+  "category": "string",
+  "priority": "number",
+  "assignee": "string",
+  "comments": "string",
+  "tags": ["string", "string"],
+  "history": {}
 }
 ```
 
@@ -291,8 +298,12 @@ DELETE /finance-installments/{id}
   "due_date": "date",
   "amount": "number",
   "status": "string",
-  "created_at": "timestamp",
-  "updated_at": "timestamp"
+  "category": "string",
+  "priority": "number",
+  "assignee": "string",
+  "comments": "string",
+  "tags": ["string", "string"],
+  "history": {}
 }
 ```
 

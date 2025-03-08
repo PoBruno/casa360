@@ -9,6 +9,7 @@ import cors from 'cors';
 import authRoutes from './routes/auth';
 import houseRoutes from './routes/house';
 import financeCurrencyRoutes from './routes/financeCurrency';
+import kanbanBucketsRoutes from './routes/kanbanBuckets';
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ app.use('/api/auth', authRoutes);
 // Em seguida, as demais rotas
 app.use('/api/houses', houseRoutes);
 app.use('/api/house/:house_id/finance-currency', financeCurrencyRoutes);
+app.use('/api/house/:house_id/kanban-buckets', kanbanBucketsRoutes);
 app.use('/api', routes);
 
 app.use(errorHandler);

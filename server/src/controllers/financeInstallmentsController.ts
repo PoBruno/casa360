@@ -61,6 +61,72 @@ export const getFinanceInstallmentById = async (req: Request, res: Response) => 
   }
 };
 
+export const createFinanceInstallment = async (req: Request, res: Response) => {
+  const { house_id } = req.params;
+  const {
+    finance_entries_id,
+    installment_number,
+    due_date,
+    amount,
+    status = 'pending',
+    category,
+    priority,
+    assignee,
+    comments,
+    tags,
+    history
+  } = req.body;
+  
+  try {
+    const dbManager = DatabaseManager.getInstance();
+    const housePool = await dbManager.getHousePool(house_id);
+
+    // Check if finance_entries_id exists
+    const entryExists = await housePool.query(
+      'SELECT 1 FROM Finance_Entries WHERE id = $1',
+      [finance_entries_id]
+    );
+    
+    if (entryExists.rows.length === 0) {
+      return res.status(400).json({ message: 'Finance Entry não encontrado' });
+    }
+
+    // Check for duplicate installment number
+    const duplicateCheck = await housePool.query(
+      'SELECT 1 FROM Finance_Installments WHERE finance_entries_id = $1 AND installment_number = $2',
+      [finance_entries_id, installment_number]
+    );
+    
+    if (duplicateCheck.rows.length > 0) {
+      return res.status(400).json({ 
+        message: 'Já existe uma parcela com este número para esta entrada financeira' 
+      });
+    }
+
+    const result = await housePool.query(
+      `INSERT INTO Finance_Installments (
+        finance_entries_id, installment_number, due_date, 
+        amount, status, category, priority, assignee, 
+        comments, tags, history
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING *`,
+      [
+        finance_entries_id, installment_number, due_date,
+        amount, status, category, priority, assignee,
+        comments, tags, history || '{}'
+      ]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating installment:', error);
+    res.status(500).json({ 
+      error: 'Erro ao criar parcela', 
+      details: error 
+    });
+  }
+};
+
 export const updateInstallmentStatus = async (req: Request, res: Response) => {
   const { house_id, id } = req.params;
   const { status } = req.body;
@@ -86,11 +152,49 @@ export const updateInstallmentStatus = async (req: Request, res: Response) => {
 
 export const updateFinanceInstallment = async (req: Request, res: Response) => {
   const { house_id, id } = req.params;
-  const { finance_entries_id, installment_number, due_date, amount } = req.body;
+  const { 
+    finance_entries_id, 
+    installment_number, 
+    due_date, 
+    amount, 
+    status,
+    category,
+    priority,
+    assignee,
+    comments,
+    tags,
+    history
+  } = req.body;
   
   try {
     const dbManager = DatabaseManager.getInstance();
     const housePool = await dbManager.getHousePool(house_id);
+    
+    // Check if finance_entries_id exists if provided
+    if (finance_entries_id) {
+      const entryExists = await housePool.query(
+        'SELECT 1 FROM Finance_Entries WHERE id = $1',
+        [finance_entries_id]
+      );
+      
+      if (entryExists.rows.length === 0) {
+        return res.status(400).json({ message: 'Finance Entry não encontrado' });
+      }
+    }
+
+    // Check if changing to duplicate installment number
+    if (finance_entries_id && installment_number) {
+      const duplicateCheck = await housePool.query(
+        'SELECT 1 FROM Finance_Installments WHERE finance_entries_id = $1 AND installment_number = $2 AND id != $3',
+        [finance_entries_id, installment_number, id]
+      );
+      
+      if (duplicateCheck.rows.length > 0) {
+        return res.status(400).json({ 
+          message: 'Já existe uma parcela com este número para esta entrada financeira' 
+        });
+      }
+    }
 
     const result = await housePool.query(
       `UPDATE Finance_Installments SET 
@@ -98,9 +202,29 @@ export const updateFinanceInstallment = async (req: Request, res: Response) => {
         installment_number = $2,
         due_date = $3,
         amount = $4,
+        status = $5,
+        category = $6,
+        priority = $7,
+        assignee = $8,
+        comments = $9,
+        tags = $10,
+        history = $11,
         updated_at = NOW()
-      WHERE id = $5 RETURNING *`,
-      [finance_entries_id, installment_number, due_date, amount, id]
+      WHERE id = $12 RETURNING *`,
+      [
+        finance_entries_id, 
+        installment_number, 
+        due_date, 
+        amount, 
+        status,
+        category,
+        priority,
+        assignee,
+        comments,
+        tags,
+        history,
+        id
+      ]
     );
 
     if (result.rows.length) {
@@ -109,7 +233,11 @@ export const updateFinanceInstallment = async (req: Request, res: Response) => {
       res.status(404).json({ message: 'Parcela não encontrada' });
     }
   } catch (error) {
-    res.status(500).json({ error: 'Erro ao atualizar parcela', details: error });
+    console.error('Error updating installment:', error);
+    res.status(500).json({ 
+      error: 'Erro ao atualizar parcela', 
+      details: error 
+    });
   }
 };
 
@@ -142,6 +270,32 @@ export const patchFinanceInstallment = async (req: Request, res: Response) => {
   try {
     const dbManager = DatabaseManager.getInstance();
     const housePool = await dbManager.getHousePool(house_id);
+    
+    // Check if finance_entries_id exists if provided
+    if (updates.finance_entries_id) {
+      const entryExists = await housePool.query(
+        'SELECT 1 FROM Finance_Entries WHERE id = $1',
+        [updates.finance_entries_id]
+      );
+      
+      if (entryExists.rows.length === 0) {
+        return res.status(400).json({ message: 'Finance Entry não encontrado' });
+      }
+    }
+
+    // Check if changing to duplicate installment number
+    if (updates.finance_entries_id && updates.installment_number) {
+      const duplicateCheck = await housePool.query(
+        'SELECT 1 FROM Finance_Installments WHERE finance_entries_id = $1 AND installment_number = $2 AND id != $3',
+        [updates.finance_entries_id, updates.installment_number, id]
+      );
+      
+      if (duplicateCheck.rows.length > 0) {
+        return res.status(400).json({ 
+          message: 'Já existe uma parcela com este número para esta entrada financeira' 
+        });
+      }
+    }
     
     // Construct dynamic SET clause based on provided fields
     const setClause = [];
