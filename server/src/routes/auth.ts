@@ -1,27 +1,25 @@
-import { Router, Request } from 'express';
-import { login, register } from '../controllers/authController';
-import { authenticate } from '../middleware/auth';
+import { Router } from "express"
+import {
+  register,
+  login,
+  getProfile,
+  updateProfile,
+  updateSettings,
+  changePassword,
+} from "../controllers/authController"
+import { authenticate } from "../middleware/auth"
 
-const router = Router();
+const router = Router()
 
-// Define custom interface extending Request
-interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    role?: string;
-  };
-}
+// Public routes
+router.post("/register", register)
+router.post("/login", login)
 
-// Route for user registration
-router.post('/register', register);
+// Protected routes
+router.get("/profile", authenticate, getProfile)
+router.put("/profile", authenticate, updateProfile)
+router.put("/settings", authenticate, updateSettings)
+router.put("/change-password", authenticate, changePassword)
 
-// Route for user login
-router.post('/login', login);
+export default router
 
-// Example of a protected route
-router.get('/profile', authenticate, (req: AuthenticatedRequest, res) => {
-    res.status(200).json({ message: 'This is a protected route', user: req.user });
-});
-
-export default router;

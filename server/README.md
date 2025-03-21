@@ -101,3 +101,94 @@ npm start
 cd ../client
 npm start
 ```
+
+exit
+
+```
+
+
+# Banco de Dados `House_Template`
+
+## Tabelas
+
+- Users
+    terá somente informações dos usuarios da casa
+
+- Payers
+    Tera cadastro de pagantes, exemplo: `João`, `Maria`, `Casal`, etc..
+
+- Payment
+    Tera os pagadores, exemplo: `João, 100% id.João`, `Maria, 100% id.Maria`, `João, 50% id.João, 50% id.Maria`, etc..
+
+- Wallet
+    tera todas as atualizações da carteira do usuario
+
+- Frequency
+    teremos cadastro de frequencia para termos controle de frequencia horario, diaria, semanal, mensal e anual (talvez devessemos por somente id pk, name, description e scheduler_cron)
+
+- Cost_Center
+    cadastro de centro de custo (categoria pai), exemplo: `Casa`, `Saude`, `Lazer`, `Receita`, etc..
+    
+- Category
+    cadastro de categoria (categoria filho), exemplo: `Aluguel`, `Salário`, `Mercado`, `Internet`, etc..
+    
+- Currency
+    cadastro de moeda valor de taxa de conversao para formula, exemplo: `Real R$ 1.00`, `Dollar US 5.47`, etc..
+
+- Documents
+    tabela destinada a guardar informações de anexos
+    
+- Finance_Entries
+    tabela central destinada a cadastro de contas financeiras, vamos ter um valor boleado que definira 0 como income e 1 como expanse, nele vamos ter associado um id.Payment, id.Frequency, id.Cost_Center, id.Category e id.Currency (não sao obrigatorios), vamos ter data vigente (dia da primeira parcela), quantidade de parcelas, valor etc..
+
+- Task_Entries
+    essa tabela será parecida com Finance_Entries porém com intuito de ser destinadas a recorrencia de tarefas, por exemplo: `Dia de Lixo`, `Mercado Semanal`, `Verificar Correios`, etc..
+    
+     
+- Tasks
+    essa tabela será usada para criar tarefas, onde teremos campos de tabelas para tasks e a task pode ter associação a uma id.Finance_Entries, teremos nela um campo de status com valor boleano onde 0 sera interpretado como pendente e 1 interpretado como Finalizado
+    essa tabela tem que ser adaptada para comportar dados de `Finance_Entries` e `Task_Entries`
+    nessa tabela nós poderemos associar anexos
+
+- Transactions
+    essa tabela sera destinada ao financeiro para armazenar todas as transações realizadas, sendo possivel cadastrar uma transação manual unica ou então uma transação vinda de Finance_Entries
+
+    
+## Ttriggers
+
+- Finance_Entries e Task_Entries
+    Sempre em um INSERT ou UPDATE em qualquer uma das 2 tabelas Finance_Entries ou Task_Entries
+    deve analizar a data inicio, id.Frequency e quantidade de parcelas e realizar todos os cadastros em `Tasks` com `status` 0 `false` como pendente
+    devemos analisar se ja tem o cadastro, baseado na quantidade de parcelas, a data 
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```

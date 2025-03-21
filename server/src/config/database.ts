@@ -1,35 +1,35 @@
-import { Pool } from 'pg';
-import dotenv from 'dotenv';
+import { Pool } from "pg"
+import dotenv from "dotenv"
 
-dotenv.config();
+dotenv.config()
 
-const config = {
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port: Number(process.env.DB_PORT)
-};
+// Main user database connection
+export const userPool = new Pool({
+  host: process.env.DB_HOST || "localhost",
+  user: process.env.DB_USER || "user",
+  password: process.env.DB_PASSWORD || "password",
+  database: process.env.DB_NAME || "data-user",
+  port: Number(process.env.DB_PORT || 5432),
+})
 
-export const primaryPool = new Pool(config);
+// Base configuration for house databases
+export const housePoolConfig = {
+  host: process.env.DATA_CASA_HOST || "localhost",
+  user: process.env.DATA_CASA_USER || "user",
+  password: process.env.DATA_CASA_PASSWORD || "password",
+  port: Number(process.env.DATA_CASA_PORT || 5433),
+}
 
-export const dataCasaPool = new Pool({
-  host: process.env.DATA_CASA_HOST,
-  user: process.env.DATA_CASA_USER,
-  password: process.env.DATA_CASA_PASSWORD,
-  database: process.env.DATA_CASA_NAME,
-  port: Number(process.env.DATA_CASA_PORT)
-});
-
-export const query = (text: string, params?: any[]) => {
-  return primaryPool.query(text, params);
-};
-
-export { config };
+// Function to get a connection to a specific house database
+export const getHousePool = (houseId: string): Pool => {
+  return new Pool({
+    ...housePoolConfig,
+    database: houseId,
+  })
+}
 
 export default {
-  query,
-  config,
-  primaryPool,
-  dataCasaPool
-};
+  userPool,
+  getHousePool,
+}
+
