@@ -2,8 +2,8 @@
 INSERT INTO users (username, email, password, full_name, email_verified)
 VALUES
     ('joao', 'joao@example.com', '123', 'João Silva', TRUE),
-    ('maria', 'maria@example.com', '123', 'Maria Santos', TRUE);
-    ('test', 'test@test.com', '123', 'Maria Santos', TRUE);
+    ('maria', 'maria@example.com', '123', 'Maria Santos', TRUE),
+    ('user', 'user@user.com', '123', 'Maria Santos', TRUE);
 
 -- Store the user IDs for later use
 DO $$
