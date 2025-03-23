@@ -1,4 +1,3 @@
-
 services:
   frontend:
     build:
@@ -10,6 +9,7 @@ services:
       - backend
     environment:
       - NODE_ENV=production
+      - NEXT_PUBLIC_BACKEND_URL=/api
     networks:
       - app-network
     healthcheck:
