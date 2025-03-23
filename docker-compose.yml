@@ -4,6 +4,7 @@ services:
     build:
       context: ./client
       dockerfile: Dockerfile
+    container_name: frontend
     restart: unless-stopped
     depends_on:
       - backend
@@ -27,6 +28,7 @@ services:
     build:
       context: ./client/nginx
       dockerfile: Dockerfile
+    container_name: nginx
     restart: unless-stopped
     depends_on:
       - frontend
@@ -50,7 +52,7 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: casa360-backend
+    container_name: backend
     environment:
       PORT: 3000
       NODE_ENV: development
