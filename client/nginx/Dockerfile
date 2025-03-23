@@ -18,9 +18,6 @@ RUN chmod 644 /etc/nginx/nginx.conf \
 # Expose HTTP port
 EXPOSE 80
 
-# Set healthcheck
-HEALTHCHECK --interval=30s --timeout=3s CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
-
 # Run as nginx user
 USER nginx
 
