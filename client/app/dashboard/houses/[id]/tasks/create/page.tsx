@@ -29,7 +29,7 @@ export default function CreateTaskPage() {
   const [status, setStatus] = useState("todo")
   const [priority, setPriority] = useState("medium")
   const [points, setPoints] = useState(10)
-  const [members, setMembers] = useState([])
+  const [members, setMembers] = useState<any[]>([])
   const [assignedTo, setAssignedTo] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
@@ -134,7 +134,7 @@ export default function CreateTaskPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {members.map((member) => (
+                  {(Array.isArray(members) ? members : []).map((member) => (
                     <SelectItem key={member.userId} value={member.userId}>
                       {member.user?.name}
                     </SelectItem>

@@ -23,30 +23,39 @@ export default function HouseDetailPage() {
   const [tasks, setTasks] = useState([])
   const [members, setMembers] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const houseId = params.id as string
 
   useEffect(() => {
     const fetchHouseData = async () => {
       try {
-        setIsLoading(true)
-        const houseData = await api.houses.getById(houseId)
-        setHouse(houseData)
-
-        const [tasksData, membersData] = await Promise.all([api.tasks.getAll(houseId), api.houses.getMembers(houseId)])
-
-        setTasks(tasksData)
-        setMembers(membersData)
+        setIsLoading(true);
+        setError(null);
+        
+        // First, get the house details
+        const houseDetails = await api.houses.getById(houseId);
+        setHouse(houseDetails.house);
+        setMembers(houseDetails.members || []);
+        
+        // Then try to get tasks with robust error handling
+        try {
+          const tasksData = await api.tasks.getAll(houseId);
+          // Make sure we have a tasks array, even if the response was malformed
+          const tasksList = tasksData?.tasks || [];
+          setTasks(tasksList);
+        } catch (taskError) {
+          console.warn("Error fetching tasks, continuing with empty task list:", taskError);
+          setTasks([]);
+        }
+        
+        // Then load other house data
+        // ...
       } catch (error) {
-        console.error("Error fetching house data:", error)
-        toast({
-          variant: "destructive",
-          title: t("common.error"),
-          description: "Failed to load house data",
-        })
-        router.push("/dashboard/houses")
+        console.error("Error fetching house data:", error);
+        setError(error instanceof Error ? error.message : String(error));
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
     }
 

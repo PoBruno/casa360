@@ -13,17 +13,30 @@ import api from "@/lib/api"
 export default function HousesPage() {
   const { t } = useLanguage()
   const { toast } = useToast()
-  const [houses, setHouses] = useState([])
+  const [houses, setHouses] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchHouses = async () => {
       try {
         setIsLoading(true)
-        const housesData = await api.houses.getAll()
-        setHouses(housesData)
+        setError(null)
+        
+        // Get house data with proper response structure handling
+        const response = await api.houses.getAll()
+        console.log("Houses API response:", response)
+        
+        if (response && response.houses && Array.isArray(response.houses)) {
+          setHouses(response.houses)
+        } else {
+          console.error("Unexpected houses response format:", response)
+          setHouses([])
+          setError("Invalid data format received from server")
+        }
       } catch (error) {
         console.error("Error fetching houses:", error)
+        setError(error instanceof Error ? error.message : String(error))
         toast({
           variant: "destructive",
           title: t("common.error"),
@@ -54,6 +67,14 @@ export default function HousesPage() {
         </div>
       </div>
 
+      {error && (
+        <Card>
+          <CardContent className="p-4 text-red-500">
+            <p>Error: {error}</p>
+          </CardContent>
+        </Card>
+      )}
+
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
@@ -65,7 +86,15 @@ export default function HousesPage() {
       ) : houses.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {houses.map((house) => (
-            <HouseCard key={house.id} house={house} />
+            <HouseCard 
+              key={house.id} 
+              house={{
+                id: house.id,
+                name: house.house_name || house.name || "Unnamed House",
+                description: house.description || "",
+                memberCount: house.members?.length || house.memberCount || 0
+              }} 
+            />
           ))}
         </div>
       ) : (
