@@ -1,0 +1,84 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: casa360-backend
+    environment:
+      PORT: 3000
+      NODE_ENV: development
+      JWT_SECRET: your_jwt_secret_key_here
+      JWT_EXPIRES_IN: 1d
+
+      # Configuração para a instância data-user (usando hostname do serviço)
+      DB_HOST: data-user
+      DB_PORT: 5432
+      DB_NAME: data-user
+      DB_USER: user
+      DB_PASSWORD: password
+
+      # Configuração para a instância data-casa (usando hostname do serviço)
+      DATA_CASA_HOST: data-casa
+      DATA_CASA_PORT: 5432
+      DATA_CASA_NAME: data-casa
+      DATA_CASA_USER: user
+      DATA_CASA_PASSWORD: password
+    depends_on:
+      data-user:
+        condition: service_healthy
+      data-casa:
+        condition: service_healthy
+    networks:
+      - casa360-network
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  data-user:
+    image: postgres:latest
+    container_name: data-user
+    environment:
+      POSTGRES_DB: data-user
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - ./db/data-user:/docker-entrypoint-initdb.d
+      - data-user-volume:/var/lib/postgresql/data
+    networks:
+      - casa360-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d data-user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  data-casa:
+    image: postgres:latest
+    container_name: data-casa
+    environment:
+      POSTGRES_DB: data-casa
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - ./db/data-casa:/docker-entrypoint-initdb.d
+      - data-casa-volume:/var/lib/postgresql/data
+    networks:
+      - casa360-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d data-casa"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  data-user-volume:
+  data-casa-volume:
+
+networks:
+  casa360-network:
+    driver: bridge
