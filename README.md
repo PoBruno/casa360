@@ -1,6 +1,6 @@
 # Casa360
 
-Casa360 é um sistema full-stack open source para a gestão financeira doméstica – o verdadeiro ERP do Lar. A ideia surgiu da necessidade de termos um único lugar para armazenar tudo o que diz respeito à administração do nosso cotidiano: desde comprovantes de contas antigas, passando pelo controle dos serviços de streaming e armazenamento em nuvem, até a análise detalhada para grandes investimentos, como a compra de uma casa.  
+Casa360 é um sistema full-stack open source para a gestão financeira doméstica – o verdadeiro ERP doméstico. A ideia surgiu da necessidade de termos um único lugar para armazenar tudo o que diz respeito à administração do nosso cotidiano: desde comprovantes de contas antigas, passando pelo controle dos serviços de streaming e armazenamento em nuvem, até a análise detalhada para grandes investimentos, como a compra de uma casa.  
 
 ## Nossa Ideia
 
